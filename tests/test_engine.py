@@ -1,7 +1,6 @@
 import pytest
 
 from outbreak.board import Location
-from outbreak.cards import CardType
 from outbreak.game import GameState, Phase, Winner
 from outbreak.player import Role
 

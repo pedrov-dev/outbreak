@@ -105,7 +105,8 @@ class GameState:
                 card = self._pathogen_cards[name]
                 state.add_population(name, card.replication)
                 self.log(
-                    f"{name} replicates in {location.value}: population +{card.replication}"
+                    f"{name} replicates in {location.value}: "
+                    f"population +{card.replication}"
                 )
 
     def perform_action(self, action: str, **kwargs: object) -> bool:
@@ -350,7 +351,8 @@ def run_cli(
                 return
             if command_name == "help":
                 output_fn(
-                    "Commands: status, end, infect, replicate, deploy, diagnose, treat, quit"
+                    "Commands: status, end, infect, replicate, deploy, "
+                    "diagnose, treat, quit"
                 )
                 continue
             if command_name == "status":
@@ -387,7 +389,8 @@ def run_cli(
 def _status(game: GameState) -> str:
     locations = (
         ", ".join(
-            f"{location.value}: {state.population} population / infection {state.infection}"
+            f"{location.value}: {state.population} population / "
+            f"infection {state.infection}"
             for location, state in game.board.locations.items()
             if state.population
         )

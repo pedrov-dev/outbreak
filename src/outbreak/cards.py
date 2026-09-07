@@ -10,6 +10,7 @@ from typing import Any
 
 class CardType(StrEnum):
     """Card type enumeration for pathogen and host defense cards."""
+
     PATHOGEN = "pathogen"
     IMMUNE = "immune"
     DIAGNOSTIC = "diagnostic"
@@ -130,7 +131,7 @@ def expanded_pathogen_deck() -> list[PathogenCard]:
 
 
 def expanded_host_deck() -> list[HostDefenseCard]:
-    """Return the broader Phase 3 host-defense pool for expansion and scenario testing."""
+    """Return the broader Phase 3 host-defense pool for scenario testing."""
     return [
         card
         for card in load_card_definitions()["host"]

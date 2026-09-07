@@ -19,13 +19,22 @@ Install the project and development dependencies:
 python -m pip install -e ".[dev]"
 ```
 
-## Test
+## Test and quality checks
 
 Run the test suite from the repository root:
 
 ```powershell
 python -m pytest
 ```
+
+Run the formatting and lint checks:
+
+```powershell
+python -m black src tests
+python -m flake8 src tests
+```
+
+The development extra installs the test, formatter, and linter dependencies.
 
 Run the Phase 2 simulation batch:
 
@@ -72,7 +81,27 @@ After an action, enter `pass` or respond with `CARD | LOCATION`. Use `status` to
 - `src/outbreak/data/cards.json`: JSON card definitions for the starter decks
 - `tests/`: automated tests
 - `docs/`: design and implementation documents
-- `DEVELOPMENT_ROADMAP.md`: project phases and deliverables
+- `docs/DEVELOPMENT_ROADMAP.md`: project phases and deliverables
+
+## Architecture
+
+The engine is deliberately split into small, framework-independent modules:
+
+- `board.py` owns locations, populations, infection, and host defenses.
+- `cards.py` owns card models and loads the JSON card catalog.
+- `player.py` owns deck, hand, discard, energy, and action state.
+- `game.py` owns phases, actions, response windows, progression, and win conditions.
+- `simulation.py` runs deterministic automated games for balance checks.
+- `web.py` is a thin Flask interface over the same `GameState` engine.
+
+The JSON catalog is content, not game logic. Card balance can therefore be tuned
+without changing the rules engine. The tests exercise both individual mechanics
+and complete simulated games.
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the local development workflow and
+guidelines for proposing changes.
 
 ## Card definitions
 

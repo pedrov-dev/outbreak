@@ -81,12 +81,17 @@ class SimulationSummary:
                 f"Host wins: {self.host_wins} ({self.host_win_rate:.1%})",
                 f"Draws: {self.draws}",
                 f"Average rounds: {self.average_rounds:.2f}",
-                f"Median rounds: {self.median_rounds:.2f} (range {self.min_rounds}-{self.max_rounds}, σ {self.rounds_stddev:.2f})",
+                f"Median rounds: {self.median_rounds:.2f} "
+                f"(range {self.min_rounds}-{self.max_rounds}, "
+                f"σ {self.rounds_stddev:.2f})",
                 f"Average disease: {self.average_disease:.2f}",
-                f"Median disease: {self.median_disease:.2f} (σ {self.disease_stddev:.2f})",
+                f"Median disease: {self.median_disease:.2f} "
+                f"(σ {self.disease_stddev:.2f})",
                 f"Average final population: {self.average_final_population:.2f}",
-                f"Median final population: {self.median_final_population:.2f} (σ {self.population_stddev:.2f})",
-                f"Average rounds to pathogen win: {self.average_pathogen_win_rounds:.2f}",
+                f"Median final population: {self.median_final_population:.2f} "
+                f"(σ {self.population_stddev:.2f})",
+                "Average rounds to pathogen win: "
+                f"{self.average_pathogen_win_rounds:.2f}",
                 f"Average rounds to host win: {self.average_host_win_rounds:.2f}",
             ]
         )
