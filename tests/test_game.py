@@ -1,7 +1,7 @@
-from outbreak.game import main
+from outbreak.game import run_cli
 
 
 def test_game_entry_point(capsys) -> None:
-    main()
+    run_cli(input_fn=lambda _prompt: "quit")
 
-    assert "not implemented yet" in capsys.readouterr().out
+    assert "OUTBREAK: Pathogen vs Host Defense" in capsys.readouterr().out
