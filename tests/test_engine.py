@@ -38,6 +38,20 @@ def test_macrophage_clearance_is_reduced_by_persistence() -> None:
     assert game.board.locations[Location.GI].population == 2
 
 
+def test_progression_runs_once_per_complete_round() -> None:
+    game = make_game()
+    game.board.locations[Location.GI].add_population("E. coli", 3)
+
+    game.start_turn(Role.PATHOGEN)
+    assert game.end_turn() is None
+    assert game.disease == 0
+
+    game.start_turn(Role.HOST)
+    game.end_turn()
+
+    assert game.disease == 1
+
+
 def test_antibiotic_does_not_clear_influenza() -> None:
     game = make_game()
     game.board.locations[Location.RESPIRATORY].add_population("Influenza", 3)

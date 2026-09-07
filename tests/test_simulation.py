@@ -15,6 +15,10 @@ def test_simulation_summary_counts_all_games() -> None:
     assert summary.pathogen_wins + summary.host_wins + summary.draws == 12
     assert 0.0 <= summary.pathogen_win_rate <= 1.0
     assert 0.0 <= summary.host_win_rate <= 1.0
+    assert summary.median_rounds >= 0
+    assert summary.rounds_stddev >= 0
+    assert summary.min_rounds <= summary.max_rounds
+    assert "Median rounds:" in summary.format()
 
 
 def test_single_game_produces_result_within_round_limit() -> None:

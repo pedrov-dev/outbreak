@@ -7,6 +7,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 from random import Random
+from statistics import median, pstdev
 
 if __package__:
 	from .board import Location
@@ -41,6 +42,16 @@ class SimulationSummary:
 	average_rounds: float
 	average_disease: float
 	average_final_population: float
+	median_rounds: float
+	rounds_stddev: float
+	min_rounds: int
+	max_rounds: int
+	median_disease: float
+	disease_stddev: float
+	median_final_population: float
+	population_stddev: float
+	average_pathogen_win_rounds: float
+	average_host_win_rounds: float
 
 	@property
 	def pathogen_win_rate(self) -> float:
@@ -58,8 +69,13 @@ class SimulationSummary:
 				f"Host wins: {self.host_wins} ({self.host_win_rate:.1%})",
 				f"Draws: {self.draws}",
 				f"Average rounds: {self.average_rounds:.2f}",
+				f"Median rounds: {self.median_rounds:.2f} (range {self.min_rounds}-{self.max_rounds}, σ {self.rounds_stddev:.2f})",
 				f"Average disease: {self.average_disease:.2f}",
+				f"Median disease: {self.median_disease:.2f} (σ {self.disease_stddev:.2f})",
 				f"Average final population: {self.average_final_population:.2f}",
+				f"Median final population: {self.median_final_population:.2f} (σ {self.population_stddev:.2f})",
+				f"Average rounds to pathogen win: {self.average_pathogen_win_rounds:.2f}",
+				f"Average rounds to host win: {self.average_host_win_rounds:.2f}",
 			]
 		)
 
@@ -104,13 +120,27 @@ def run_simulation(games: int = 100, seed: int = 0, max_rounds: int = 50) -> Sim
 		average_rounds=_average(result.rounds for result in results),
 		average_disease=_average(result.disease for result in results),
 		average_final_population=_average(result.final_population for result in results),
+		median_rounds=_median(result.rounds for result in results),
+		rounds_stddev=_stddev(result.rounds for result in results),
+		min_rounds=min((result.rounds for result in results), default=0),
+		max_rounds=max((result.rounds for result in results), default=0),
+		median_disease=_median(result.disease for result in results),
+		disease_stddev=_stddev(result.disease for result in results),
+		median_final_population=_median(result.final_population for result in results),
+		population_stddev=_stddev(result.final_population for result in results),
+		average_pathogen_win_rounds=_average(
+			result.rounds for result in results if result.winner is Winner.PATHOGEN
+		),
+		average_host_win_rounds=_average(
+			result.rounds for result in results if result.winner is Winner.HOST
+		),
 	)
 
 
 def _play_pathogen_turn(game: GameState, random: Random) -> None:
 	game.start_turn(Role.PATHOGEN)
-	location = _pathogen_location(game)
-	pathogen_name = _pathogen_name(game)
+	location = _pathogen_location(game, random)
+	pathogen_name = _pathogen_name(game, random)
 	if pathogen_name is None:
 		game.end_turn()
 		return
@@ -122,7 +152,8 @@ def _play_pathogen_turn(game: GameState, random: Random) -> None:
 	_pass_response(game)
 
 	if game.active_player.actions_remaining:
-		if random.random() < 0.35:
+		population = game.board.locations[location].population
+		if population >= 3 and random.random() < 0.35:
 			game.perform_action("virulence", pathogen_name=pathogen_name)
 		else:
 			game.perform_action("replicate", pathogen_name=pathogen_name, location=location)
@@ -132,7 +163,7 @@ def _play_pathogen_turn(game: GameState, random: Random) -> None:
 
 def _play_host_turn(game: GameState, random: Random) -> None:
 	game.start_turn(Role.HOST)
-	location = _most_populated_location(game)
+	location = _most_populated_location(game, random)
 	if location is None:
 		game.end_turn()
 		return
@@ -159,22 +190,26 @@ def _pass_response(game: GameState) -> None:
 		game.end_response()
 
 
-def _pathogen_location(game: GameState) -> Location:
-	for location, state in game.board.locations.items():
-		if state.population:
-			return location
-	return Location.GI
+def _pathogen_location(game: GameState, random: Random) -> Location:
+	locations = [location for location, state in game.board.locations.items() if state.population]
+	return random.choice(locations) if locations else Location.GI
 
 
-def _most_populated_location(game: GameState) -> Location | None:
-	populated = [(state.population, location) for location, state in game.board.locations.items() if state.population]
-	return max(populated)[1] if populated else None
+def _most_populated_location(game: GameState, random: Random) -> Location | None:
+	populated = [
+		(location, state.population)
+		for location, state in game.board.locations.items()
+		if state.population
+	]
+	if not populated:
+		return None
+	maximum = max(population for _, population in populated)
+	return random.choice([location for location, population in populated if population == maximum])
 
 
-def _pathogen_name(game: GameState) -> str | None:
-	if game.pathogen.hand:
-		return next((card.name for card in game.pathogen.hand if card.name in {"E. coli", "Influenza"}), None)
-	return next(iter(game._pathogen_cards), None)
+def _pathogen_name(game: GameState, random: Random) -> str | None:
+	available = [card.name for card in game.pathogen.hand if card.name in game._pathogen_cards]
+	return random.choice(available) if available else next(iter(game._pathogen_cards), None)
 
 
 def _can_play_host_card(game: GameState, card_name: str) -> bool:
@@ -184,6 +219,16 @@ def _can_play_host_card(game: GameState, card_name: str) -> bool:
 def _average(values: object) -> float:
 	values = list(values)  # type: ignore[arg-type]
 	return sum(values) / len(values) if values else 0.0
+
+
+def _median(values: object) -> float:
+	values = list(values)  # type: ignore[arg-type]
+	return float(median(values)) if values else 0.0
+
+
+def _stddev(values: object) -> float:
+	values = list(values)  # type: ignore[arg-type]
+	return pstdev(values) if len(values) > 1 else 0.0
 
 
 def main() -> None:

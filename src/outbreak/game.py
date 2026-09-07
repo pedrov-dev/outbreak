@@ -160,7 +160,7 @@ class GameState:
     def end_turn(self) -> Winner | None:
         if self.phase is Phase.RESPONSE:
             self.end_response()
-        return self.progression()
+        return self.progression() if self.active_role is Role.HOST else self.winner
 
     def infect(self, pathogen_name: str, location: Location) -> bool:
         card = self._pathogen_cards.get(pathogen_name)
