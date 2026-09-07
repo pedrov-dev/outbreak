@@ -129,7 +129,7 @@ Each round is a biological conversation: **Pathogen Turn → Host Response → H
 | **Replication** | Rate of autonomous population increase                                  | Added to Population during Biology phase (viruses require infected host cells)  |
 | **Virulence**   | Efficiency of converting pathogen presence to clinical harm             | Disease gain = (Population ÷ 3, floored) + (1 if Virulence ≥4) + modifiers     |
 | **Persistence** | Resistance to clearance by immunity/treatment                           | Reduces effectiveness of clearance effects by (Persistence - 1), min 0          |
-| **Evasion**     | Ability to avoid/interfere with host defenses                           | Modifies success of immune actions against pathogen                             |
+| **Evasion**     | Ability to avoid/interfere with host defenses                           | Reduces immune clearance; targeted treatments still interact through Persistence |
 
 ### 4.3 Critical Distinctions
 - **Population**: Pathogen burden (e.g., E. coli Population: ●●●●○)

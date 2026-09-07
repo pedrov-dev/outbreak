@@ -33,7 +33,11 @@ Run the Phase 2 simulation batch:
 python -m outbreak.simulation --games 100 --seed 0
 ```
 
-The simulation reports pathogen and Host win rates, draws caused by the round limit, average rounds, disease, and final pathogen population. Use a fixed `--seed` to reproduce a result.
+The simulation reports pathogen and Host win rates, draws caused by the round limit, average and median rounds, standard deviation, outcome ranges, winner-specific game length, disease, and final pathogen population. Use a fixed `--seed` to reproduce a result.
+
+### Phase 3 balance baseline
+
+The current starter set uses Evasion to reduce immune clearance and includes two Antiviral cards so viral infections have reliable counterplay. A 1,000-game run with `--seed 0` produced 54.7% Pathogen wins, 45.3% Host wins, and 2.93 average rounds. Pathogen wins averaged 4.54 rounds; Host wins averaged 1.00 round, so one-round Host clears remain a balance area to monitor.
 
 ## Play
 

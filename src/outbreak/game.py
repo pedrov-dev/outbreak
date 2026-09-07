@@ -240,10 +240,17 @@ class GameState:
         state = self.board.locations[location]
         for name in list(state.pathogens):
             pathogen = self._pathogen_cards[name]
-            self._clear_pathogen(location, name, potency, pathogen.persistence)
+            self._clear_pathogen(location, name, potency, pathogen.persistence, pathogen.evasion)
 
-    def _clear_pathogen(self, location: Location, name: str, potency: int, persistence: int) -> None:
-        amount = max(0, potency - max(0, persistence - 1))
+    def _clear_pathogen(
+        self,
+        location: Location,
+        name: str,
+        potency: int,
+        persistence: int,
+        evasion: int = 0,
+    ) -> None:
+        amount = max(0, potency - max(0, persistence - 1) - evasion)
         self.board.locations[location].add_population(name, -amount)
 
     def _ensure_playing(self) -> None:

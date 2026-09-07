@@ -81,7 +81,7 @@ class SimulationSummary:
 
 
 def play_game(seed: int | None = None, max_rounds: int = 50) -> GameResult:
-	"""Run one game with simple deterministic heuristics and a seeded RNG."""
+	"""Run one game with simple seeded heuristics."""
 	random = Random(seed)
 	game = new_game(seed)
 	for _ in range(max_rounds):
@@ -170,6 +170,8 @@ def _play_host_turn(game: GameState, random: Random) -> None:
 
 	if _can_play_host_card(game, "Macrophage"):
 		game.perform_action("deploy", card_name="Macrophage", location=location)
+	elif _can_play_host_card(game, "Antiviral") and _location_has_pathogen_class(game, location, "virus"):
+		game.perform_action("treat", card_name="Antiviral", location=location)
 	elif _can_play_host_card(game, "Antibiotic"):
 		game.perform_action("treat", card_name="Antibiotic", location=location)
 	else:
@@ -214,6 +216,13 @@ def _pathogen_name(game: GameState, random: Random) -> str | None:
 
 def _can_play_host_card(game: GameState, card_name: str) -> bool:
 	return any(card.name == card_name and card.cost <= game.host.energy for card in game.host.hand)
+
+
+def _location_has_pathogen_class(game: GameState, location: Location, pathogen_class: str) -> bool:
+	return any(
+		game._pathogen_cards[name].pathogen_class == pathogen_class
+		for name in game.board.locations[location].pathogens
+	)
 
 
 def _average(values: object) -> float:

@@ -38,6 +38,17 @@ def test_macrophage_clearance_is_reduced_by_persistence() -> None:
     assert game.board.locations[Location.GI].population == 2
 
 
+def test_macrophage_clearance_is_reduced_by_evasion() -> None:
+    game = make_game()
+    game.board.locations[Location.RESPIRATORY].add_population("Influenza", 3)
+    game.phase = Phase.ACTIONS
+    game.active_role = Role.HOST
+
+    game.perform_action("deploy", card_name="Macrophage", location=Location.RESPIRATORY)
+
+    assert game.board.locations[Location.RESPIRATORY].population == 2
+
+
 def test_progression_runs_once_per_complete_round() -> None:
     game = make_game()
     game.board.locations[Location.GI].add_population("E. coli", 3)
@@ -61,6 +72,17 @@ def test_antibiotic_does_not_clear_influenza() -> None:
     game.perform_action("treat", card_name="Antibiotic", location=Location.RESPIRATORY)
 
     assert game.board.locations[Location.RESPIRATORY].population == 3
+
+
+def test_antiviral_clears_influenza() -> None:
+    game = make_game()
+    game.board.locations[Location.RESPIRATORY].add_population("Influenza", 3)
+    game.phase = Phase.ACTIONS
+    game.active_role = Role.HOST
+
+    game.perform_action("treat", card_name="Antiviral", location=Location.RESPIRATORY)
+
+    assert game.board.locations[Location.RESPIRATORY].population == 0
 
 
 def test_progression_uses_population_and_high_virulence() -> None:
