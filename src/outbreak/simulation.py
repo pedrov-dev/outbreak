@@ -139,6 +139,13 @@ def run_simulation(games: int = 100, seed: int = 0, max_rounds: int = 50) -> Sim
 
 def _play_pathogen_turn(game: GameState, random: Random) -> None:
 	game.start_turn(Role.PATHOGEN)
+	if (
+		game.infection_established
+		and game.board.total_population() == 0
+		and random.random() < 0.75
+	):
+		game.end_turn()
+		return
 	location = _pathogen_location(game, random)
 	pathogen_name = _pathogen_name(game, random)
 	if pathogen_name is None:
@@ -177,6 +184,9 @@ def _play_host_turn(game: GameState, random: Random) -> None:
 	game.start_turn(Role.HOST)
 	location = _most_populated_location(game, random)
 	if location is None:
+		if _can_play_host_card(game, "PCR"):
+			game.perform_action("diagnose", card_name="PCR")
+			_pass_response(game)
 		game.end_turn()
 		return
 
@@ -192,7 +202,9 @@ def _play_host_turn(game: GameState, random: Random) -> None:
 
 	if game.active_player.actions_remaining:
 		location = _most_populated_location(game, random) or Location.GI
-		if location is not None and _can_play_host_card(game, "Antiviral") and _location_has_pathogen_class(game, location, "virus"):
+		if _can_play_host_card(game, "PCR") and game.board.total_population() == 0:
+			game.perform_action("diagnose", card_name="PCR")
+		elif location is not None and _can_play_host_card(game, "Antiviral") and _location_has_pathogen_class(game, location, "virus"):
 			game.perform_action("treat", card_name="Antiviral", location=location)
 		elif location is not None and _can_play_host_card(game, "Antibiotic") and _location_has_pathogen_class(game, location, "bacterium"):
 			game.perform_action("treat", card_name="Antibiotic", location=location)

@@ -66,10 +66,40 @@ def test_progression_runs_once_per_complete_round() -> None:
 def test_host_clearance_requires_two_progressions() -> None:
     game = make_game()
     game.infection_established = True
+    game.clearance_confirmed = True
 
     assert game.progression() is None
     assert game.clearance_streak == 1
     assert game.progression() is Winner.HOST
+
+
+def test_infection_recovers_gradually_after_population_is_cleared() -> None:
+    game = make_game()
+    game.board.locations[Location.GI].infection = 3
+
+    game.progression()
+
+    assert game.board.locations[Location.GI].infection == 2
+
+
+def test_host_requires_clean_diagnosis() -> None:
+    game = make_game()
+    game.infection_established = True
+
+    assert game.progression() is None
+    assert game.clearance_streak == 0
+
+
+def test_clean_diagnosis_confirms_clearance() -> None:
+    game = make_game()
+    game.infection_established = True
+    game.phase = Phase.ACTIONS
+    game.active_role = Role.HOST
+    game.board.locations[Location.GI].infection = 0
+
+    game.perform_action("diagnose", card_name="PCR")
+
+    assert game.clearance_confirmed is True
 
 
 def test_antibiotic_does_not_clear_influenza() -> None:

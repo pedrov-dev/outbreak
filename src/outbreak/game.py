@@ -47,6 +47,7 @@ class GameState:
     winner: Winner | None = None
     infection_established: bool = False
     clearance_streak: int = 0
+    clearance_confirmed: bool = False
     events: list[str] = field(default_factory=list)
     _pathogen_cards: dict[str, PathogenCard] = field(default_factory=dict, repr=False)
 
@@ -134,7 +135,10 @@ class GameState:
     def progression(self) -> Winner | None:
         self.phase = Phase.PROGRESSION
         for location, state in self.board.locations.items():
-            state.infection = min(5, state.population // 1)
+            if state.population:
+                state.infection = min(5, state.population)
+            else:
+                state.infection = max(0, state.infection - 1)
             state.tissue_damage = min(5, state.population // 3)
         gain = sum(
             state.population // 3
@@ -145,7 +149,12 @@ class GameState:
         self.log(f"Progression: disease +{gain} (now {self.disease})")
         if self.disease >= 9:
             self.winner = Winner.PATHOGEN
-        elif self.infection_established and self.board.total_population() == 0 and self.board.total_infection() == 0:
+        elif (
+            self.infection_established
+            and self.clearance_confirmed
+            and self.board.total_population() == 0
+            and self.board.total_infection() == 0
+        ):
             self.clearance_streak += 1
             if self.clearance_streak >= 2:
                 self.winner = Winner.HOST
@@ -212,7 +221,13 @@ class GameState:
     def diagnose(self, card_name: str = "PCR") -> bool:
         card = self._take_host_card(card_name, CardType.DIAGNOSTIC)
         self.board.clinical_zone.append(card.name)
-        self.log(f"{card.name} identifies {self.board.total_population()} total pathogen population")
+        population = self.board.total_population()
+        if population == 0 and self.board.total_infection() == 0:
+            self.clearance_confirmed = True
+            self.log(f"{card.name} confirms clearance")
+        else:
+            self.clearance_confirmed = False
+            self.log(f"{card.name} identifies {population} total pathogen population")
         return True
 
     def treat(self, card_name: str, location: Location) -> bool:

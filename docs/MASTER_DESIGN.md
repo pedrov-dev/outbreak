@@ -94,6 +94,7 @@ Each round is a biological conversation: **Pathogen Turn → Host Response → H
 - Biology phase makes game feel alive ("I establish bacteria → bacteria reproduce → immune system notices...")
 - Response windows create meaningful decisions without stack complexity
 - Progression phase resolves all state changes before next round
+- Cleared infection recovers one level per progression; the Host must confirm a clean board with diagnostics and maintain it through two progression checks
 
 ---
 
