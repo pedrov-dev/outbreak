@@ -1,0 +1,174 @@
+:root {
+  --bg: #0e1726;
+  --panel: #14263d;
+  --panel-alt: #1b3048;
+  --ink: #ebf4ff;
+  --muted: #a7c0dd;
+  --accent: #69d2c4;
+  --danger: #ff7d6b;
+  --shadow: rgba(0, 0, 0, 0.24);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", Tahoma, sans-serif;
+  background: linear-gradient(180deg, #091522 0%, #12223b 100%);
+  color: var(--ink);
+}
+
+.app-shell {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.topbar,
+.status-row,
+.controls,
+.panels {
+  display: flex;
+  gap: 16px;
+}
+
+.topbar {
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.eyebrow {
+  margin: 0;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+h1 {
+  margin: 0.2rem 0 0;
+  font-size: clamp(2.2rem, 4vw, 3.4rem);
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+}
+
+button,
+select {
+  border: none;
+  border-radius: 10px;
+  padding: 0.8rem 1rem;
+  font-size: 0.95rem;
+}
+
+button {
+  background: var(--accent);
+  color: #08222c;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+select {
+  background: var(--panel-alt);
+  color: var(--ink);
+  min-width: 160px;
+}
+
+.status-row {
+  flex-wrap: wrap;
+  margin-bottom: 22px;
+}
+
+.status-card,
+.panel,
+.location-card {
+  background: rgba(20, 38, 61, 0.82);
+  border: 1px solid rgba(130, 156, 196, 0.22);
+  border-radius: 16px;
+  box-shadow: 0 14px 28px var(--shadow);
+}
+
+.status-card {
+  flex: 1 1 180px;
+  padding: 1rem 1.1rem;
+}
+
+.label {
+  display: block;
+  font-size: 0.78rem;
+  color: var(--muted);
+  margin-bottom: 0.4rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.board-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.location-card {
+  padding: 1rem;
+}
+
+.location-card h3 {
+  margin-top: 0;
+}
+
+.controls {
+  flex-wrap: wrap;
+  align-items: end;
+  margin-bottom: 24px;
+  padding: 18px;
+  background: rgba(20, 38, 61, 0.82);
+  border-radius: 16px;
+  border: 1px solid rgba(130, 156, 196, 0.22);
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.panels {
+  margin-bottom: 24px;
+}
+
+.panel {
+  flex: 1;
+  padding: 18px 20px;
+}
+
+.panel ul,
+#event-log {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+
+#event-log {
+  max-height: 220px;
+  overflow: auto;
+}
+
+small {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+@media (max-width: 700px) {
+  .topbar,
+  .controls,
+  .panels {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

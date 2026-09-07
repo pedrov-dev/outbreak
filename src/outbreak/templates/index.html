@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>OUTBREAK</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Educational strategy prototype</p>
+          <h1>OUTBREAK</h1>
+        </div>
+        <div class="actions">
+          <button id="new-game">New Game</button>
+          <button id="advance-turn">Advance Turn</button>
+        </div>
+      </header>
+
+      <section class="status-row">
+        <div class="status-card">
+          <span class="label">Winner</span>
+          <strong id="winner">—</strong>
+        </div>
+        <div class="status-card">
+          <span class="label">Turn</span>
+          <strong id="turn">—</strong>
+        </div>
+        <div class="status-card">
+          <span class="label">Phase</span>
+          <strong id="phase">—</strong>
+        </div>
+        <div class="status-card">
+          <span class="label">Disease</span>
+          <strong id="disease">0/10</strong>
+        </div>
+      </section>
+
+      <section class="board-grid" id="board-grid"></section>
+
+      <section class="controls">
+        <div class="control-group">
+          <label for="action-select">Action</label>
+          <select id="action-select">
+            <option value="infect">Infect</option>
+            <option value="replicate">Replicate</option>
+            <option value="spread">Spread</option>
+            <option value="virulence">Virulence</option>
+            <option value="deploy">Deploy</option>
+            <option value="diagnose">Diagnose</option>
+            <option value="treat">Treat</option>
+            <option value="contain">Contain</option>
+            <option value="response">Response</option>
+            <option value="pass_response">Pass Response</option>
+          </select>
+        </div>
+
+        <div class="control-group">
+          <label for="pathogen-select">Pathogen</label>
+          <select id="pathogen-select"></select>
+        </div>
+
+        <div class="control-group">
+          <label for="card-select">Card</label>
+          <select id="card-select"></select>
+        </div>
+
+        <div class="control-group">
+          <label for="location-select">Location</label>
+          <select id="location-select"></select>
+        </div>
+
+        <div class="control-group">
+          <label for="target-select">Target</label>
+          <select id="target-select"></select>
+        </div>
+
+        <button id="run-action">Run action</button>
+      </section>
+
+      <section class="panels">
+        <div class="panel">
+          <h2>Pathogen hand</h2>
+          <ul id="pathogen-hand"></ul>
+        </div>
+        <div class="panel">
+          <h2>Host hand</h2>
+          <ul id="host-hand"></ul>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Round log</h2>
+        <ul id="event-log"></ul>
+      </section>
+    </div>
+
+    <script>
+      const state = {
+        winner: null,
+        phase: null,
+        active_role: null,
+        disease: 0,
+        board: {},
+        locations: [],
+        pathogen_hand: [],
+        host_hand: [],
+        events: []
+      };
+
+      const locationSelect = document.getElementById('location-select');
+      const targetSelect = document.getElementById('target-select');
+      const pathogenSelect = document.getElementById('pathogen-select');
+      const cardSelect = document.getElementById('card-select');
+      const actionSelect = document.getElementById('action-select');
+
+      function setOptions(select, values, placeholder = 'Choose one') {
+        select.innerHTML = '';
+        const fallback = document.createElement('option');
+        fallback.value = '';
+        fallback.textContent = placeholder;
+        select.appendChild(fallback);
+        values.forEach((value) => {
+          const option = document.createElement('option');
+          option.value = value;
+          option.textContent = value;
+          select.appendChild(option);
+        });
+      }
+
+      function renderBoard(board, locations) {
+        const boardGrid = document.getElementById('board-grid');
+        boardGrid.innerHTML = '';
+        locations.forEach((location) => {
+          const entry = board[location];
+          const card = document.createElement('article');
+          card.className = 'location-card';
+          const details = Object.entries(entry.pathogens || {}).map(([name, amount]) => `${name} ×${amount}`).join(', ') || 'No active pathogens';
+          card.innerHTML = `
+            <h3>${location}</h3>
+            <p>Population: <strong>${entry.population}</strong></p>
+            <p>Infection: <strong>${entry.infection}</strong></p>
+            <p>Defense: <strong>${entry.defense}</strong></p>
+            <p>Damage: <strong>${entry.tissue_damage}</strong></p>
+            <small>${details}</small>
+          `;
+          boardGrid.appendChild(card);
+        });
+      }
+
+      function renderLists() {
+        const pathogenHand = document.getElementById('pathogen-hand');
+        const hostHand = document.getElementById('host-hand');
+        const eventLog = document.getElementById('event-log');
+
+        pathogenHand.innerHTML = state.pathogen_hand.map((card) => `<li>${card.name} (${card.card_type})</li>`).join('') || '<li>No pathogen cards</li>';
+        hostHand.innerHTML = state.host_hand.map((card) => `<li>${card.name} (${card.card_type})</li>`).join('') || '<li>No host cards</li>';
+        eventLog.innerHTML = state.events.map((event) => `<li>${event}</li>`).join('') || '<li>No events yet</li>';
+      }
+
+      function updateStatus() {
+        document.getElementById('winner').textContent = state.winner || '—';
+        document.getElementById('turn').textContent = state.active_role || '—';
+        document.getElementById('phase').textContent = state.phase || '—';
+        document.getElementById('disease').textContent = `${state.disease}/10`;
+      }
+
+      function refreshSelections() {
+        const pathogenNames = state.pathogen_hand.map((card) => card.name);
+        const hostNames = state.host_hand.map((card) => card.name);
+        const locations = state.locations || [];
+
+        setOptions(pathogenSelect, pathogenNames, 'Choose pathogen');
+        setOptions(cardSelect, hostNames, 'Choose card');
+        setOptions(locationSelect, locations, 'Choose location');
+        setOptions(targetSelect, locations, 'Choose target');
+      }
+
+      function renderState(data) {
+        state.winner = data.winner;
+        state.phase = data.phase;
+        state.active_role = data.active_role;
+        state.disease = data.disease;
+        state.board = data.board;
+        state.locations = data.locations;
+        state.pathogen_hand = data.pathogen_hand;
+        state.host_hand = data.host_hand;
+        state.events = data.events;
+        renderBoard(state.board, state.locations);
+        renderLists();
+        updateStatus();
+        refreshSelections();
+      }
+
+      async function fetchJson(url, options = {}) {
+        const response = await fetch(url, {
+          headers: { 'Content-Type': 'application/json' },
+          ...options,
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          throw new Error(payload.error || 'Request failed');
+        }
+        return payload;
+      }
+
+      async function loadState() {
+        const payload = await fetchJson('/api/state');
+        renderState(payload);
+      }
+
+      async function startNewGame() {
+        const payload = await fetchJson('/api/new-game', { method: 'POST' });
+        renderState(payload);
+      }
+
+      async function advanceTurn() {
+        const payload = await fetchJson('/api/advance-turn', { method: 'POST' });
+        renderState(payload);
+      }
+
+      async function runAction() {
+        const action = actionSelect.value;
+        const payload = { action };
+
+        if (action === 'pass_response') {
+          payload.action = 'pass_response';
+        } else if (action === 'response') {
+          payload.card_name = cardSelect.value;
+          payload.location = locationSelect.value;
+        } else {
+          if (['infect', 'replicate', 'spread', 'virulence'].includes(action)) {
+            payload.pathogen_name = pathogenSelect.value;
+          }
+          if (['infect', 'replicate', 'deploy', 'treat', 'contain'].includes(action)) {
+            payload.location = locationSelect.value;
+          }
+          if (action === 'deploy' || action === 'treat') {
+            payload.card_name = cardSelect.value;
+          }
+          if (action === 'spread') {
+            payload.source = locationSelect.value;
+            payload.target = targetSelect.value;
+          }
+          if (action === 'diagnose') {
+            payload.card_name = cardSelect.value || 'PCR';
+          }
+          if (action === 'virulence') {
+            payload.amount = 1;
+          }
+        }
+
+        const result = await fetchJson('/api/action', {
+          method: 'POST',
+          body: JSON.stringify(payload),
+        });
+        renderState(result);
+      }
+
+      document.getElementById('new-game').addEventListener('click', startNewGame);
+      document.getElementById('advance-turn').addEventListener('click', advanceTurn);
+      document.getElementById('run-action').addEventListener('click', runAction);
+
+      loadState();
+    </script>
+  </body>
+</html>

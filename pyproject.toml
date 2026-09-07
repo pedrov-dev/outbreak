@@ -9,6 +9,7 @@ description = "A terminal-based educational pathogen versus host game."
 requires-python = ">=3.13"
 dependencies = [
     "PyYAML>=6.0",
+    "Flask>=3.0",
 ]
 
 [project.optional-dependencies]

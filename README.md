@@ -41,6 +41,14 @@ The current starter set uses Replication 1 to prevent early runaway growth, Evas
 
 ## Play
 
+Start the browser-based Phase 3 prototype:
+
+```powershell
+python -m outbreak.web
+```
+
+Then open http://127.0.0.1:5000 in a browser to play. The dashboard shows the board state, turn phase, current disease level, and a simple action panel for the existing rules engine.
+
 Start the terminal game:
 
 ```powershell
