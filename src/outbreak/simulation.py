@@ -3,12 +3,20 @@
 from __future__ import annotations
 
 import argparse
+import sys
 from dataclasses import dataclass
+from pathlib import Path
 from random import Random
 
-from .board import Location
-from .game import GameState, Winner, new_game
-from .player import Role
+if __package__:
+	from .board import Location
+	from .game import GameState, Winner, new_game
+	from .player import Role
+else:
+	sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+	from outbreak.board import Location
+	from outbreak.game import GameState, Winner, new_game
+	from outbreak.player import Role
 
 
 @dataclass(frozen=True)
