@@ -3,13 +3,21 @@
 from __future__ import annotations
 
 from pathlib import Path
+import sys
 
 from flask import Flask, jsonify, render_template, request
 
-from .board import Location
-from .cards import Card, CardType, HostDefenseCard, PathogenCard
-from .game import GameState, Phase, new_game
-from .player import Role
+if __package__:
+    from .board import Location
+    from .cards import Card, HostDefenseCard, PathogenCard
+    from .game import GameState, Phase, new_game
+    from .player import Role
+else:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+    from outbreak.board import Location
+    from outbreak.cards import Card, HostDefenseCard, PathogenCard
+    from outbreak.game import GameState, Phase, new_game
+    from outbreak.player import Role
 
 
 def create_app() -> Flask:
