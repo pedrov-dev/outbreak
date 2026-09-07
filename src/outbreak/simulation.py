@@ -11,11 +11,13 @@ from statistics import median, pstdev
 
 if __package__:
 	from .board import Location
+	from .cards import HostDefenseCard, PathogenCard, expanded_host_deck, expanded_pathogen_deck
 	from .game import GameState, Winner, new_game
 	from .player import Role
 else:
 	sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 	from outbreak.board import Location
+	from outbreak.cards import HostDefenseCard, PathogenCard, expanded_host_deck, expanded_pathogen_deck
 	from outbreak.game import GameState, Winner, new_game
 	from outbreak.player import Role
 
@@ -80,10 +82,15 @@ class SimulationSummary:
 		)
 
 
-def play_game(seed: int | None = None, max_rounds: int = 50) -> GameResult:
-	"""Run one game with simple seeded heuristics."""
+def play_game(
+	seed: int | None = None,
+	max_rounds: int = 50,
+	pathogen_deck: list[PathogenCard] | None = None,
+	host_deck: list[HostDefenseCard] | None = None,
+) -> GameResult:
+	"""Run one game with simple seeded heuristics and optional custom decks."""
 	random = Random(seed)
-	game = new_game(seed)
+	game = new_game(seed, pathogen_deck=pathogen_deck, host_deck=host_deck)
 	for _ in range(max_rounds):
 		if game.winner is not None:
 			break
@@ -101,14 +108,28 @@ def play_game(seed: int | None = None, max_rounds: int = 50) -> GameResult:
 	)
 
 
-def run_simulation(games: int = 100, seed: int = 0, max_rounds: int = 50) -> SimulationSummary:
+def run_simulation(
+	games: int = 100,
+	seed: int = 0,
+	max_rounds: int = 50,
+	pathogen_deck: list[PathogenCard] | None = None,
+	host_deck: list[HostDefenseCard] | None = None,
+) -> SimulationSummary:
 	"""Run a reproducible batch of games and calculate balance metrics."""
 	if games < 0:
 		raise ValueError("games must be non-negative")
 	if max_rounds < 1:
 		raise ValueError("max_rounds must be positive")
 
-	results = [play_game(seed=seed + index, max_rounds=max_rounds) for index in range(games)]
+	results = [
+		play_game(
+			seed=seed + index,
+			max_rounds=max_rounds,
+			pathogen_deck=pathogen_deck,
+			host_deck=host_deck,
+		)
+		for index in range(games)
+	]
 	pathogen_wins = sum(result.winner is Winner.PATHOGEN for result in results)
 	host_wins = sum(result.winner is Winner.HOST for result in results)
 	draws = games - pathogen_wins - host_wins
@@ -134,6 +155,35 @@ def run_simulation(games: int = 100, seed: int = 0, max_rounds: int = 50) -> Sim
 		average_host_win_rounds=_average(
 			result.rounds for result in results if result.winner is Winner.HOST
 		),
+	)
+
+
+def simulate_matchup(
+	pathogen_names: list[str] | None = None,
+	host_card_names: list[str] | None = None,
+	games: int = 100,
+	seed: int = 0,
+	max_rounds: int = 50,
+) -> SimulationSummary:
+	"""Run the same heuristics against custom matchup decks for Phase 3 testing."""
+	pathogen_pool = expanded_pathogen_deck()
+	if pathogen_names:
+		pathogen_pool = [card for card in pathogen_pool if card.name in set(pathogen_names)]
+	if not pathogen_pool:
+		raise ValueError("at least one pathogen card is required for a matchup")
+
+	host_pool = expanded_host_deck()
+	if host_card_names:
+		host_pool = [card for card in host_pool if card.name in set(host_card_names)]
+	if not host_pool:
+		raise ValueError("at least one host card is required for a matchup")
+
+	return run_simulation(
+		games=games,
+		seed=seed,
+		max_rounds=max_rounds,
+		pathogen_deck=pathogen_pool,
+		host_deck=host_pool,
 	)
 
 

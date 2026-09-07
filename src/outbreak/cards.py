@@ -105,8 +105,27 @@ def _card_from_definition(definition: Any) -> Card:
 
 
 def starter_pathogen_deck() -> list[PathogenCard]:
-	return [card for card in load_card_definitions()["pathogen"] if isinstance(card, PathogenCard)]
+	"""Return the small starter set used by the core tutorial and tests."""
+	all_cards = load_card_definitions()["pathogen"]
+	return [card for card in all_cards[:2] if isinstance(card, PathogenCard)]
 
 
 def starter_host_deck() -> list[HostDefenseCard]:
+	"""Return the original Phase 1 starter hand, preserving compatibility."""
+	all_cards = load_card_definitions()["host"]
+	starter_cards = [card for card in all_cards if isinstance(card, HostDefenseCard)]
+	return starter_cards[:7]
+
+
+def expanded_pathogen_deck() -> list[PathogenCard]:
+	"""Return the broader Phase 3 pathogen pool for expansion and scenario testing."""
+	return [card for card in load_card_definitions()["pathogen"] if isinstance(card, PathogenCard)]
+
+
+def expanded_host_deck() -> list[HostDefenseCard]:
+	"""Return the broader Phase 3 host-defense pool for expansion and scenario testing."""
 	return [card for card in load_card_definitions()["host"] if isinstance(card, HostDefenseCard)]
+
+
+phase_3_pathogen_deck = expanded_pathogen_deck
+phase_3_host_deck = expanded_host_deck

@@ -278,15 +278,19 @@ class GameState:
             raise GameOverError(f"game already won by {self.winner.value}")
 
 
-def new_game(seed: int | None = None) -> GameState:
+def new_game(
+    seed: int | None = None,
+    pathogen_deck: list[PathogenCard] | None = None,
+    host_deck: list[HostDefenseCard] | None = None,
+) -> GameState:
     random = Random(seed)
-    pathogen_deck = starter_pathogen_deck()
-    host_deck = starter_host_deck()
-    random.shuffle(pathogen_deck)
-    random.shuffle(host_deck)
+    pathogen_cards = list(pathogen_deck) if pathogen_deck is not None else starter_pathogen_deck()
+    host_cards = list(host_deck) if host_deck is not None else starter_host_deck()
+    random.shuffle(pathogen_cards)
+    random.shuffle(host_cards)
     game = GameState(
-        pathogen=Player(Role.PATHOGEN, pathogen_deck),
-        host=Player(Role.HOST, host_deck),
+        pathogen=Player(Role.PATHOGEN, pathogen_cards),
+        host=Player(Role.HOST, host_cards),
     )
     for _ in range(2):
         game.pathogen.draw()
