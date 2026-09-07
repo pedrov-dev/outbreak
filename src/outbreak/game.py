@@ -2,12 +2,20 @@
 
 from dataclasses import dataclass, field
 from enum import StrEnum
+from pathlib import Path
 from random import Random
+import sys
 from typing import Callable
 
-from .board import Board, Location
-from .cards import CardType, HostDefenseCard, PathogenCard, starter_host_deck, starter_pathogen_deck
-from .player import Player, Role
+if __package__:
+    from .board import Board, Location
+    from .cards import CardType, HostDefenseCard, PathogenCard, starter_host_deck, starter_pathogen_deck
+    from .player import Player, Role
+else:
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+    from outbreak.board import Board, Location
+    from outbreak.cards import CardType, HostDefenseCard, PathogenCard, starter_host_deck, starter_pathogen_deck
+    from outbreak.player import Player, Role
 
 
 class Phase(StrEnum):
