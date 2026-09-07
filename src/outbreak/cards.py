@@ -1,7 +1,11 @@
-"""Card models and the representative Phase 1 card set."""
+"""Card models and JSON-backed card definitions."""
 
 from dataclasses import dataclass
 from enum import StrEnum
+import json
+from importlib.resources import files
+from pathlib import Path
+from typing import Any
 
 
 class CardType(StrEnum):
@@ -45,97 +49,64 @@ class HostDefenseCard(Card):
 	action: str = ""
 
 
+DEFAULT_CARD_FILE = files("outbreak").joinpath("data", "cards.json")
+
+
+def load_card_definitions(path: str | Path | None = None) -> dict[str, list[Card]]:
+	"""Load card definitions grouped by the ``pathogen`` and ``host`` decks."""
+	card_file = Path(path) if path is not None else DEFAULT_CARD_FILE
+	with card_file.open(encoding="utf-8") as file:
+		payload = json.load(file)
+
+	if not isinstance(payload, dict):
+		raise ValueError("card definitions must be a JSON object")
+	decks: dict[str, list[Card]] = {}
+	for deck_name in ("pathogen", "host"):
+		definitions = payload.get(deck_name)
+		if not isinstance(definitions, list):
+			raise ValueError(f"card deck '{deck_name}' must be a JSON array")
+		decks[deck_name] = [_card_from_definition(definition) for definition in definitions]
+	return decks
+
+
+def _card_from_definition(definition: Any) -> Card:
+	if not isinstance(definition, dict):
+		raise ValueError("each card definition must be a JSON object")
+	try:
+		card_type = CardType(definition["card_type"])
+		common = {
+			"name": definition["name"],
+			"card_type": card_type,
+			"cost": definition.get("cost", 1),
+			"fact": definition.get("fact", ""),
+		}
+		if card_type is CardType.PATHOGEN:
+			return PathogenCard(
+				**common,
+				pathogen_class=definition.get("pathogen_class", "bacterium"),
+				infectivity=definition.get("infectivity", 3),
+				replication=definition.get("replication", 1),
+				virulence=definition.get("virulence", 1),
+				persistence=definition.get("persistence", 1),
+				evasion=definition.get("evasion", 0),
+				transmission=definition.get("transmission", "contact"),
+				tropism=definition.get("tropism", ""),
+				resistance=tuple(definition.get("resistance", [])),
+			)
+		return HostDefenseCard(
+			**common,
+			category=definition.get("category", "immune"),
+			potency=definition.get("potency", 0),
+			target_class=definition.get("target_class"),
+			action=definition.get("action", ""),
+		)
+	except (KeyError, TypeError, ValueError) as error:
+		raise ValueError(f"invalid card definition: {definition!r}") from error
+
+
 def starter_pathogen_deck() -> list[PathogenCard]:
-	return [
-		PathogenCard(
-			name="E. coli",
-			card_type=CardType.PATHOGEN,
-			pathogen_class="bacterium",
-			infectivity=4,
-			replication=1,
-			virulence=2,
-			persistence=2,
-			tropism="GI tract",
-			transmission="fecal-oral",
-			fact="Some E. coli strains are normal gut flora; others cause disease.",
-		),
-		PathogenCard(
-			name="Influenza",
-			card_type=CardType.PATHOGEN,
-			pathogen_class="virus",
-			infectivity=4,
-			replication=1,
-			virulence=3,
-			persistence=1,
-			evasion=2,
-			tropism="Respiratory tract",
-			transmission="airborne",
-			resistance=("antibiotic",),
-			fact="Influenza viruses replicate inside host cells and change over time.",
-		),
-	]
+	return [card for card in load_card_definitions()["pathogen"] if isinstance(card, PathogenCard)]
 
 
 def starter_host_deck() -> list[HostDefenseCard]:
-	return [
-		HostDefenseCard(
-			name="Macrophage",
-			card_type=CardType.IMMUNE,
-			category="innate immunity",
-			potency=3,
-			action="clear",
-			fact="Macrophages engulf pathogens and damaged cells.",
-		),
-		HostDefenseCard(
-			name="PCR",
-			card_type=CardType.DIAGNOSTIC,
-			category="diagnostic",
-			cost=1,
-			action="diagnose",
-			fact="PCR detects genetic material from a target organism.",
-		),
-		HostDefenseCard(
-			name="Antibiotic",
-			card_type=CardType.TREATMENT,
-			category="treatment",
-			potency=3,
-			target_class="bacterium",
-			action="treat",
-			fact="Antibiotics target bacteria, not viruses.",
-		),
-		HostDefenseCard(
-			name="Antiviral",
-			card_type=CardType.TREATMENT,
-			category="treatment",
-			potency=3,
-			target_class="virus",
-			action="treat",
-			fact="Antiviral medicines interrupt specific stages of viral replication.",
-		),
-		HostDefenseCard(
-			name="Antiviral",
-			card_type=CardType.TREATMENT,
-			category="treatment",
-			potency=3,
-			target_class="virus",
-			action="treat",
-			fact="Antiviral medicines interrupt specific stages of viral replication.",
-		),
-		HostDefenseCard(
-			name="Antiviral",
-			card_type=CardType.TREATMENT,
-			category="treatment",
-			potency=3,
-			target_class="virus",
-			action="treat",
-			fact="Antiviral medicines interrupt specific stages of viral replication.",
-		),
-		HostDefenseCard(
-			name="Fever",
-			card_type=CardType.RESPONSE,
-			category="response",
-			potency=1,
-			action="clear",
-			fact="Fever can make conditions less favorable for some pathogens.",
-		),
-	]
+	return [card for card in load_card_definitions()["host"] if isinstance(card, HostDefenseCard)]

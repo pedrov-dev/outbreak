@@ -1,0 +1,94 @@
+{
+  "pathogen": [
+    {
+      "name": "E. coli",
+      "card_type": "pathogen",
+      "pathogen_class": "bacterium",
+      "infectivity": 4,
+      "replication": 1,
+      "virulence": 2,
+      "persistence": 2,
+      "evasion": 0,
+      "tropism": "GI tract",
+      "transmission": "fecal-oral",
+      "resistance": [],
+      "fact": "Some E. coli strains are normal gut flora; others cause disease."
+    },
+    {
+      "name": "Influenza",
+      "card_type": "pathogen",
+      "pathogen_class": "virus",
+      "infectivity": 4,
+      "replication": 1,
+      "virulence": 3,
+      "persistence": 1,
+      "evasion": 2,
+      "tropism": "Respiratory tract",
+      "transmission": "airborne",
+      "resistance": ["antibiotic"],
+      "fact": "Influenza viruses replicate inside host cells and change over time."
+    }
+  ],
+  "host": [
+    {
+      "name": "Macrophage",
+      "card_type": "immune",
+      "category": "innate immunity",
+      "potency": 3,
+      "action": "clear",
+      "fact": "Macrophages engulf pathogens and damaged cells."
+    },
+    {
+      "name": "PCR",
+      "card_type": "diagnostic",
+      "category": "diagnostic",
+      "cost": 1,
+      "action": "diagnose",
+      "fact": "PCR detects genetic material from a target organism."
+    },
+    {
+      "name": "Antibiotic",
+      "card_type": "treatment",
+      "category": "treatment",
+      "potency": 3,
+      "target_class": "bacterium",
+      "action": "treat",
+      "fact": "Antibiotics target bacteria, not viruses."
+    },
+    {
+      "name": "Antiviral",
+      "card_type": "treatment",
+      "category": "treatment",
+      "potency": 3,
+      "target_class": "virus",
+      "action": "treat",
+      "fact": "Antiviral medicines interrupt specific stages of viral replication."
+    },
+    {
+      "name": "Antiviral",
+      "card_type": "treatment",
+      "category": "treatment",
+      "potency": 3,
+      "target_class": "virus",
+      "action": "treat",
+      "fact": "Antiviral medicines interrupt specific stages of viral replication."
+    },
+    {
+      "name": "Antiviral",
+      "card_type": "treatment",
+      "category": "treatment",
+      "potency": 3,
+      "target_class": "virus",
+      "action": "treat",
+      "fact": "Antiviral medicines interrupt specific stages of viral replication."
+    },
+    {
+      "name": "Fever",
+      "card_type": "response",
+      "category": "response",
+      "potency": 1,
+      "action": "clear",
+      "fact": "Fever can make conditions less favorable for some pathogens."
+    }
+  ]
+}

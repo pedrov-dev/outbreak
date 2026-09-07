@@ -61,6 +61,16 @@ After an action, enter `pass` or respond with `CARD | LOCATION`. Use `status` to
 ## Project layout
 
 - `src/outbreak/`: game package
+- `src/outbreak/data/cards.json`: JSON card definitions for the starter decks
 - `tests/`: automated tests
 - `docs/`: design and implementation documents
 - `DEVELOPMENT_ROADMAP.md`: project phases and deliverables
+
+## Card definitions
+
+Cards are stored in `src/outbreak/data/cards.json` and grouped into two top-level arrays:
+
+- `pathogen`: pathogen cards with biological stats such as `infectivity`, `replication`, and `virulence`
+- `host`: immune, diagnostic, treatment, and response cards with fields such as `category`, `potency`, and `action`
+
+Each card uses a `card_type` value from the engine's `CardType` enum. Optional fields use the same defaults as the Python card models, and repeated entries represent multiple copies in a deck. The loader constructs the existing `PathogenCard` and `HostDefenseCard` objects, so adding or tuning content does not require changing game rules.
