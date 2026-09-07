@@ -9,12 +9,24 @@ from typing import Callable
 
 if __package__:
     from .board import Board, Location
-    from .cards import CardType, HostDefenseCard, PathogenCard, starter_host_deck, starter_pathogen_deck
+    from .cards import (
+        CardType,
+        HostDefenseCard,
+        PathogenCard,
+        starter_host_deck,
+        starter_pathogen_deck,
+    )
     from .player import Player, Role
 else:
     sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
     from outbreak.board import Board, Location
-    from outbreak.cards import CardType, HostDefenseCard, PathogenCard, starter_host_deck, starter_pathogen_deck
+    from outbreak.cards import (
+        CardType,
+        HostDefenseCard,
+        PathogenCard,
+        starter_host_deck,
+        starter_pathogen_deck,
+    )
     from outbreak.player import Player, Role
 
 
@@ -38,7 +50,9 @@ class GameOverError(RuntimeError):
 @dataclass
 class GameState:
     board: Board = field(default_factory=Board)
-    pathogen: Player = field(default_factory=lambda: Player(Role.PATHOGEN, starter_pathogen_deck()))
+    pathogen: Player = field(
+        default_factory=lambda: Player(Role.PATHOGEN, starter_pathogen_deck())
+    )
     host: Player = field(default_factory=lambda: Player(Role.HOST, starter_host_deck()))
     disease: int = 0
     round_number: int = 0
@@ -52,7 +66,11 @@ class GameState:
     _pathogen_cards: dict[str, PathogenCard] = field(default_factory=dict, repr=False)
 
     def __post_init__(self) -> None:
-        self._pathogen_cards = {card.name: card for card in self.pathogen.deck if isinstance(card, PathogenCard)}
+        self._pathogen_cards = {
+            card.name: card
+            for card in self.pathogen.deck
+            if isinstance(card, PathogenCard)
+        }
 
     @property
     def active_player(self) -> Player:
@@ -86,7 +104,9 @@ class GameState:
             for name, population in list(state.pathogens.items()):
                 card = self._pathogen_cards[name]
                 state.add_population(name, card.replication)
-                self.log(f"{name} replicates in {location.value}: population +{card.replication}")
+                self.log(
+                    f"{name} replicates in {location.value}: population +{card.replication}"
+                )
 
     def perform_action(self, action: str, **kwargs: object) -> bool:
         self._ensure_playing()
@@ -119,8 +139,13 @@ class GameState:
     def play_response(self, card_name: str, location: Location) -> bool:
         if self.phase is not Phase.RESPONSE:
             raise ValueError("responses are only available after an action")
-        card = next((card for card in self.opposing_player.hand if card.name == card_name), None)
-        if not isinstance(card, HostDefenseCard) or card.card_type is not CardType.RESPONSE:
+        card = next(
+            (card for card in self.opposing_player.hand if card.name == card_name), None
+        )
+        if (
+            not isinstance(card, HostDefenseCard)
+            or card.card_type is not CardType.RESPONSE
+        ):
             raise ValueError(f"{card_name} is not a response card in hand")
         if self.opposing_player.energy < card.cost:
             raise ValueError("insufficient Biological Energy")
@@ -142,7 +167,11 @@ class GameState:
             state.tissue_damage = min(5, state.population // 3)
         gain = sum(
             state.population // 3
-            + sum(1 for name in state.pathogens if self._pathogen_cards[name].virulence >= 4)
+            + sum(
+                1
+                for name in state.pathogens
+                if self._pathogen_cards[name].virulence >= 4
+            )
             for state in self.board.locations.values()
         )
         self.disease = min(10, self.disease + gain)
@@ -192,7 +221,9 @@ class GameState:
     def replicate(self, pathogen_name: str, location: Location) -> bool:
         card = self._pathogen_cards[pathogen_name]
         self.board.locations[location].add_population(pathogen_name, card.replication)
-        self.log(f"{pathogen_name} replicates by action: population +{card.replication}")
+        self.log(
+            f"{pathogen_name} replicates by action: population +{card.replication}"
+        )
         return True
 
     def spread(self, pathogen_name: str, source: Location, target: Location) -> bool:
@@ -260,7 +291,9 @@ class GameState:
         state = self.board.locations[location]
         for name in list(state.pathogens):
             pathogen = self._pathogen_cards[name]
-            self._clear_pathogen(location, name, potency, pathogen.persistence, pathogen.evasion)
+            self._clear_pathogen(
+                location, name, potency, pathogen.persistence, pathogen.evasion
+            )
 
     def _clear_pathogen(
         self,
@@ -284,7 +317,9 @@ def new_game(
     host_deck: list[HostDefenseCard] | None = None,
 ) -> GameState:
     random = Random(seed)
-    pathogen_cards = list(pathogen_deck) if pathogen_deck is not None else starter_pathogen_deck()
+    pathogen_cards = (
+        list(pathogen_deck) if pathogen_deck is not None else starter_pathogen_deck()
+    )
     host_cards = list(host_deck) if host_deck is not None else starter_host_deck()
     random.shuffle(pathogen_cards)
     random.shuffle(host_cards)
@@ -298,7 +333,9 @@ def new_game(
     return game
 
 
-def run_cli(input_fn: Callable[[str], str] = input, output_fn: Callable[[str], None] = print) -> None:
+def run_cli(
+    input_fn: Callable[[str], str] = input, output_fn: Callable[[str], None] = print
+) -> None:
     game = new_game()
     output_fn("OUTBREAK: Pathogen vs Host Defense")
     output_fn("Type 'help' for commands, or 'quit' to leave.")
@@ -312,7 +349,9 @@ def run_cli(input_fn: Callable[[str], str] = input, output_fn: Callable[[str], N
             if command_name == "quit":
                 return
             if command_name == "help":
-                output_fn("Commands: status, end, infect, replicate, deploy, diagnose, treat, quit")
+                output_fn(
+                    "Commands: status, end, infect, replicate, deploy, diagnose, treat, quit"
+                )
                 continue
             if command_name == "status":
                 output_fn(_status(game))
@@ -331,7 +370,9 @@ def run_cli(input_fn: Callable[[str], str] = input, output_fn: Callable[[str], N
                 if response.lower() != "pass":
                     try:
                         card_name, location_text = response.split("|", maxsplit=1)
-                        game.play_response(card_name.strip(), _parse_location(location_text))
+                        game.play_response(
+                            card_name.strip(), _parse_location(location_text)
+                        )
                     except (ValueError, KeyError) as error:
                         output_fn(f"Response skipped: {error}")
                         game.end_response()
@@ -344,11 +385,14 @@ def run_cli(input_fn: Callable[[str], str] = input, output_fn: Callable[[str], N
 
 
 def _status(game: GameState) -> str:
-    locations = ", ".join(
-        f"{location.value}: {state.population} population / infection {state.infection}"
-        for location, state in game.board.locations.items()
-        if state.population
-    ) or "no active infection"
+    locations = (
+        ", ".join(
+            f"{location.value}: {state.population} population / infection {state.infection}"
+            for location, state in game.board.locations.items()
+            if state.population
+        )
+        or "no active infection"
+    )
     return f"Disease {game.disease}/10 | {locations}"
 
 
@@ -366,14 +410,20 @@ def _parse_location(text: str) -> Location:
     return aliases[text.strip().lower()]
 
 
-def _run_cli_action(game: GameState, command: str, output_fn: Callable[[str], None]) -> None:
+def _run_cli_action(
+    game: GameState, command: str, output_fn: Callable[[str], None]
+) -> None:
     parts = [part.strip() for part in command.split("|", maxsplit=2)]
     action = parts[0].lower()
     if action in {"infect", "replicate", "deploy", "treat"} and len(parts) == 3:
         if action in {"infect", "replicate"}:
-            game.perform_action(action, pathogen_name=parts[1], location=_parse_location(parts[2]))
+            game.perform_action(
+                action, pathogen_name=parts[1], location=_parse_location(parts[2])
+            )
         else:
-            game.perform_action(action, card_name=parts[1], location=_parse_location(parts[2]))
+            game.perform_action(
+                action, card_name=parts[1], location=_parse_location(parts[2])
+            )
     elif action == "diagnose" and len(parts) == 2:
         game.perform_action(action, card_name=parts[1])
     elif action == "contain" and len(parts) == 2:

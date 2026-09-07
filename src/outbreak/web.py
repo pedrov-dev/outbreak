@@ -93,7 +93,9 @@ def _advance_turn(game: GameState) -> None:
             game.start_turn(Role.PATHOGEN)
 
 
-def _apply_action(game: GameState, action: str | None, payload: dict[str, object]) -> None:
+def _apply_action(
+    game: GameState, action: str | None, payload: dict[str, object]
+) -> None:
     if action is None:
         raise ValueError("action is required")
     if game.winner is not None:
@@ -139,19 +141,33 @@ def _apply_action(game: GameState, action: str | None, payload: dict[str, object
         )
         return
     if action == "virulence":
-        game.perform_action("virulence", pathogen_name=str(payload.get("pathogen_name")), amount=int(payload.get("amount", 1)))
+        game.perform_action(
+            "virulence",
+            pathogen_name=str(payload.get("pathogen_name")),
+            amount=int(payload.get("amount", 1)),
+        )
         return
     if action == "deploy":
-        game.perform_action("deploy", card_name=str(payload.get("card_name")), location=_require_location(payload.get("location")))
+        game.perform_action(
+            "deploy",
+            card_name=str(payload.get("card_name")),
+            location=_require_location(payload.get("location")),
+        )
         return
     if action == "diagnose":
         game.perform_action("diagnose", card_name=str(payload.get("card_name", "PCR")))
         return
     if action == "treat":
-        game.perform_action("treat", card_name=str(payload.get("card_name")), location=_require_location(payload.get("location")))
+        game.perform_action(
+            "treat",
+            card_name=str(payload.get("card_name")),
+            location=_require_location(payload.get("location")),
+        )
         return
     if action == "contain":
-        game.perform_action("contain", location=_require_location(payload.get("location")))
+        game.perform_action(
+            "contain", location=_require_location(payload.get("location"))
+        )
         return
 
     raise ValueError(f"unsupported action: {action}")
