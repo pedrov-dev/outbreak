@@ -27,6 +27,14 @@ Run the test suite from the repository root:
 python -m pytest
 ```
 
+Run the Phase 2 simulation batch:
+
+```powershell
+python -m outbreak.simulation --games 100 --seed 0
+```
+
+The simulation reports pathogen and Host win rates, draws caused by the round limit, average rounds, disease, and final pathogen population. Use a fixed `--seed` to reproduce a result.
+
 ## Play
 
 Start the terminal game:
