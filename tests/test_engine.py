@@ -23,7 +23,7 @@ def test_pathogen_biology_replication_increases_population() -> None:
 
     game.resolve_biology()
 
-    assert game.board.locations[Location.GI].population == 3
+    assert game.board.locations[Location.GI].population == 2
 
 
 def test_macrophage_clearance_is_reduced_by_persistence() -> None:
@@ -61,6 +61,15 @@ def test_progression_runs_once_per_complete_round() -> None:
     game.end_turn()
 
     assert game.disease == 1
+
+
+def test_host_clearance_requires_two_progressions() -> None:
+    game = make_game()
+    game.infection_established = True
+
+    assert game.progression() is None
+    assert game.clearance_streak == 1
+    assert game.progression() is Winner.HOST
 
 
 def test_antibiotic_does_not_clear_influenza() -> None:
@@ -106,7 +115,7 @@ def test_response_window_allows_one_host_response() -> None:
     game.play_response("Fever", Location.GI)
 
     assert game.phase is Phase.ACTIONS
-    assert game.board.locations[Location.GI].population == 3
+    assert game.board.locations[Location.GI].population == 2
 
 
 def test_outbreak_sets_pathogen_winner() -> None:

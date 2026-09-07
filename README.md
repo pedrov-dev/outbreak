@@ -37,7 +37,7 @@ The simulation reports pathogen and Host win rates, draws caused by the round li
 
 ### Phase 3 balance baseline
 
-The current starter set uses Evasion to reduce immune clearance and includes two Antiviral cards so viral infections have reliable counterplay. A 1,000-game run with `--seed 0` produced 54.7% Pathogen wins, 45.3% Host wins, and 2.93 average rounds. Pathogen wins averaged 4.54 rounds; Host wins averaged 1.00 round, so one-round Host clears remain a balance area to monitor.
+The current starter set uses Replication 1 to prevent early runaway growth, Evasion to reduce immune clearance, and three Antiviral cards so viral infections have reliable counterplay. Host clearance must remain stable through two progression checks. A 1,000-game run with `--seed 0` produced 55.2% Pathogen wins, 44.8% Host wins, 5.22 average rounds, and a median of 7 rounds with a 2-10 range. This supports a 10-15 minute target for human play while preserving meaningful balance variation.
 
 ## Play
 

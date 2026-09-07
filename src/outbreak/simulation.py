@@ -153,7 +153,19 @@ def _play_pathogen_turn(game: GameState, random: Random) -> None:
 
 	if game.active_player.actions_remaining:
 		population = game.board.locations[location].population
-		if population >= 3 and random.random() < 0.35:
+		targets = [
+			candidate
+			for candidate, state in game.board.locations.items()
+			if candidate is not location and not state.population
+		]
+		if population >= 4 and targets and random.random() < 0.25:
+			game.perform_action(
+				"spread",
+				pathogen_name=pathogen_name,
+				source=location,
+				target=random.choice(targets),
+			)
+		elif population >= 3 and random.random() < 0.35:
 			game.perform_action("virulence", pathogen_name=pathogen_name)
 		else:
 			game.perform_action("replicate", pathogen_name=pathogen_name, location=location)
@@ -179,7 +191,12 @@ def _play_host_turn(game: GameState, random: Random) -> None:
 	_pass_response(game)
 
 	if game.active_player.actions_remaining:
-		if random.random() < 0.5 and _can_play_host_card(game, "PCR"):
+		location = _most_populated_location(game, random) or Location.GI
+		if location is not None and _can_play_host_card(game, "Antiviral") and _location_has_pathogen_class(game, location, "virus"):
+			game.perform_action("treat", card_name="Antiviral", location=location)
+		elif location is not None and _can_play_host_card(game, "Antibiotic") and _location_has_pathogen_class(game, location, "bacterium"):
+			game.perform_action("treat", card_name="Antibiotic", location=location)
+		elif random.random() < 0.5 and _can_play_host_card(game, "PCR"):
 			game.perform_action("diagnose", card_name="PCR")
 		else:
 			game.perform_action("contain", location=location)

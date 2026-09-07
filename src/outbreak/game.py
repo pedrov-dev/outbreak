@@ -46,6 +46,7 @@ class GameState:
     active_role: Role = Role.PATHOGEN
     winner: Winner | None = None
     infection_established: bool = False
+    clearance_streak: int = 0
     events: list[str] = field(default_factory=list)
     _pathogen_cards: dict[str, PathogenCard] = field(default_factory=dict, repr=False)
 
@@ -145,7 +146,11 @@ class GameState:
         if self.disease >= 9:
             self.winner = Winner.PATHOGEN
         elif self.infection_established and self.board.total_population() == 0 and self.board.total_infection() == 0:
-            self.winner = Winner.HOST
+            self.clearance_streak += 1
+            if self.clearance_streak >= 2:
+                self.winner = Winner.HOST
+        else:
+            self.clearance_streak = 0
         return self.winner
 
     def run_round(self) -> Winner | None:

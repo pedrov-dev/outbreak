@@ -81,7 +81,7 @@ Each round is a biological conversation: **Pathogen Turn → Host Response → H
 ### Phase Breakdown (per active turn):
 1. **DRAW**: Draw 1 card, gain 1 Biological Energy, resolve start-of-turn effects
 2. **BIOLOGY**: Automatic pathogen actions (replication, lifecycle progression, spread)
-   - *Example*: E. coli with Replication=2 → Population +2 during Biology phase
+   - *Example*: E. coli with Replication=1 → Population +1 during Biology phase
 3. **ACTIONS**: Active player performs up to 2 actions (Infect, Replicate, Spread, Evolve, Virulence, Investigate, Diagnose, Deploy, Treat, Contain, Vaccinate)
 4. **RESPONSE**: After each action, opposing player gets 1 response window to play 1 legal Response card/ability
 5. **PROGRESSION**: Evaluate Host state:
@@ -146,10 +146,10 @@ Each round is a biological conversation: **Pathogen Turn → Host Response → H
 ---
 
 ## 5. INTEGRATED MECHANICS EXAMPLE
-**Scenario**: E. coli (Infectivity 4, Replication 2, Virulence 2, Persistence 2) in GI Tract
+**Scenario**: E. coli (Infectivity 4, Replication 1, Virulence 2, Persistence 2) in GI Tract
 
 1. **Pathogen Turn - Biology Phase**:
-   - Automatic Replication: Population increases by 2 (e.g., 2 → 4)
+   - Automatic Replication: Population increases by 1 (e.g., 2 → 3)
    - Infection check: Population 4 → Infection increases to ●●●○○ (if not already infected)
 
 2. **Pathogen Action - Toxin Production** (Virulence Factor):

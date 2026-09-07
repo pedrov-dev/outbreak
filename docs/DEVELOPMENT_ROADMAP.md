@@ -117,6 +117,8 @@ This roadmap outlines the steps to implement the OUTBREAK game based on the Mast
    - Adjust card costs, stats, and effects based on simulation data.
    - Address any imbalance (e.g., pathogen too strong/weak).
    - Clarify ambiguous rules from the design document through implementation.
+
+   **Current refinement target:** 6-10 rounds per game, with a median near 7 rounds and a roughly even win rate. The current baseline achieves a 7-round median and 55.2% Pathogen wins across 1,000 seeded games.
 2. **Content Expansion**:
    - Implement the full suggested deck sizes:
      - Pathogen Deck (30 cards): 10 Pathogens, 5 Transmission, 5 Virulence, 5 Replication/Evolution, 5 Resistance/Support.
