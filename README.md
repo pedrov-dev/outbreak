@@ -1,113 +1,57 @@
 # OUTBREAK
 
-OUTBREAK is a terminal-based educational strategy game about the biological contest between a pathogen and a host immune system.
+A solo card game for learning clinical microbiology.
 
-The project currently includes the Phase 1 terminal MVP: a pathogen and Host Defense player, five host compartments, starter cards, biological replication, response windows, and win conditions.
+A patient arrives with a mystery infection. You are both the immune system and the clinician. Each day you spend energy on immune cards, lab tests and drugs. You work up the organism, narrow the differential, choose an antimicrobial that actually covers it and reaches the infected site, and keep the patient alive while the pathogen grows, spreads and releases toxins. Every case ends with a debrief: the organism's lab profile, virulence factors, treatment and high-yield pearls, plus an explanation of why each drug you chose did or didn't work.
 
-## Setup
-
-Create and activate the virtual environment:
-
-```powershell
-python -m venv venv
-.\venv\Scripts\Activate.ps1
-```
-
-Install the project and development dependencies:
-
-```powershell
-python -m pip install -e ".[dev]"
-```
-
-## Test and quality checks
-
-Run the test suite from the repository root:
-
-```powershell
-python -m pytest
-```
-
-Run the formatting and lint checks:
-
-```powershell
-python -m black src tests
-python -m flake8 src tests
-```
-
-The development extra installs the test, formatter, and linter dependencies.
-
-Run the Phase 2 simulation batch:
-
-```powershell
-python -m outbreak.simulation --games 100 --seed 0
-```
-
-The simulation reports pathogen and Host win rates, draws caused by the round limit, average and median rounds, standard deviation, outcome ranges, winner-specific game length, disease, and final pathogen population. Use a fixed `--seed` to reproduce a result.
-
-### Phase 3 balance baseline
-
-The current starter set uses Replication 1 to prevent early runaway growth, Evasion to reduce immune clearance, and three Antiviral cards so viral infections have reliable counterplay. Cleared infection recovers one level per progression, and Host clearance requires a clean PCR confirmation plus two progression checks. A 1,000-game run with `--seed 0` produced 46.2% Pathogen wins, 53.8% Host wins, 5.77 average rounds, and a median of 6 rounds with a 3-11 range. Pathogen wins averaged 7.68 rounds and Host wins averaged 4.14 rounds, supporting the 10-15 minute target for human play.
+It runs entirely in the browser with no build step and no dependencies, and works on phones.
 
 ## Play
 
-Start the browser-based Phase 3 prototype:
-
-```powershell
-python -m outbreak.web
+```bash
+npm start
 ```
 
-Then open http://127.0.0.1:5000 in a browser to play. The dashboard shows the board state, turn phase, current disease level, and a simple action panel for the existing rules engine.
+Then open http://127.0.0.1:8417. Any static file server works too (`python -m http.server`). The page uses ES modules, so opening `index.html` straight from disk won't work.
 
-Start the terminal game:
+## What's in it
 
-```powershell
-python -m outbreak.game
+- **14 organisms** across gram-positive and gram-negative bacteria, mycobacteria, viruses and fungi: MSSA, MRSA, *S. pyogenes*, *S. pneumoniae*, *N. meningitidis*, *E. coli*, *P. aeruginosa*, *L. monocytogenes*, *C. difficile*, *M. tuberculosis*, influenza A, HSV-1, *C. albicans* and *C. neoformans*. Each has two USMLE-style presentations.
+- **8 lab tests**: Gram stain, culture (which takes a day, or three for TB), biochemistry, susceptibility testing, acid-fast stain, KOH/India ink, a PCR panel, and lumbar puncture.
+- **21 drugs**, each with its real mechanism, spectrum, CNS penetration and site limits. Cefazolin won't reach the meninges, nitrofurantoin only works in the bladder, IV vancomycin does nothing for *C. difficile*, and broad antibiotics make *C. difficile* worse.
+- **Immune cards** that follow real immunology: neutrophils fail against viruses, capsules blunt phagocytes until complement or antibodies opsonize, NK and cytotoxic T cells handle intracellular microbes, and adaptive immunity only arrives after several days.
+- **Three difficulties.** Intern and Resident cross off the differential automatically. Attending makes you do it yourself.
+- **Case files**, a study reference that unlocks each organism once you've met it, plus the full formulary and immune card reference.
+
+Progress and an in-progress case are saved in the browser's local storage.
+
+## Publish
+
+The repository deploys itself to GitHub Pages. In the GitHub repository settings, go to **Pages**, set **Source** to **GitHub Actions**, then push to `master`. `.github/workflows/pages.yml` runs the tests and publishes the static files. Netlify, Cloudflare Pages or any static host also works: serve the repository root.
+
+## Develop
+
+Requires Node 22 or newer (only for tests and tooling; the game itself has no dependencies).
+
+```bash
+npm test            # rules and content tests
+npm run simulate    # balance report: bot win rates per organism and difficulty
 ```
 
-CLI actions use `|` separators, for example:
-
-```text
-infect | E. coli | GI
-replicate | E. coli | GI
-deploy | Macrophage | GI
-diagnose | PCR
-```
-
-After an action, enter `pass` or respond with `CARD | LOCATION`. Use `status` to inspect the board and `end` to finish the active player's actions.
+The simulation plays thousands of games with three bots: a **clinician** that works up the case and treats from the evidence, an **empiric** bot that gives vancomycin + ceftriaxone forever, and an **immune-only** bot that never prescribes. A healthy balance keeps the clinician near 100%, empiric therapy around 50% (it misses Listeria, Pseudomonas, *C. difficile*, TB, viruses and fungi), and immune-only well below that.
 
 ## Project layout
 
-- `src/outbreak/`: game package
-- `src/outbreak/data/cards.json`: JSON card definitions for the starter decks
-- `tests/`: automated tests
-- `docs/`: design and implementation documents
-- `docs/DEVELOPMENT_ROADMAP.md`: project phases and deliverables
+- `index.html`, `favicon.svg`: the page
+- `src/data/`: all game content. Organisms, drugs, labs, cards and body sites live here as plain data.
+- `src/engine/`: the rules (`game.js`), drug explanations (`explain.js`), seeded RNG, and the simulation bots. No DOM code.
+- `src/ui/`: the browser front end (`app.js`, `styles.css`)
+- `scripts/`: local server and balance simulation
+- `tests/`: `node:test` suites
+- `docs/DESIGN.md`: rules and design notes. `docs/archive/` holds the original design documents.
 
-## Architecture
+The original Python/Flask prototype is preserved at the `python-prototype` git tag.
 
-The engine is deliberately split into small, framework-independent modules:
+## Disclaimer
 
-- `board.py` owns locations, populations, infection, and host defenses.
-- `cards.py` owns card models and loads the JSON card catalog.
-- `player.py` owns deck, hand, discard, energy, and action state.
-- `game.py` owns phases, actions, response windows, progression, and win conditions.
-- `simulation.py` runs deterministic automated games for balance checks.
-- `web.py` is a thin Flask interface over the same `GameState` engine.
-
-The JSON catalog is content, not game logic. Card balance can therefore be tuned
-without changing the rules engine. The tests exercise both individual mechanics
-and complete simulated games.
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the local development workflow and
-guidelines for proposing changes.
-
-## Card definitions
-
-Cards are stored in `src/outbreak/data/cards.json` and grouped into two top-level arrays:
-
-- `pathogen`: pathogen cards with biological stats such as `infectivity`, `replication`, and `virulence`
-- `host`: immune, diagnostic, treatment, and response cards with fields such as `category`, `potency`, and `action`
-
-Each card uses a `card_type` value from the engine's `CardType` enum. Optional fields use the same defaults as the Python card models, and repeated entries represent multiple copies in a deck. The loader constructs the existing `PathogenCard` and `HostDefenseCard` objects, so adding or tuning content does not require changing game rules.
+OUTBREAK is a study aid, not clinical guidance. Real treatment depends on local resistance patterns, patient factors and current guidelines.
