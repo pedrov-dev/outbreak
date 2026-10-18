@@ -5,6 +5,7 @@ import { LABS } from "../src/data/labs.js";
 import { PATHOGENS, pathogenById } from "../src/data/pathogens.js";
 import { playGame } from "../src/engine/bot.js";
 import { explainDrug } from "../src/engine/explain.js";
+import { logText } from "../src/i18n/index.js";
 import {
   RULES,
   createGame,
@@ -73,7 +74,7 @@ test("cefazolin cannot reach the CNS and nitrofurantoin only reaches the bladder
   const cns = state.sites.cns;
   startDrug(state, "cefazolin");
   assert.equal(state.sites.cns, cns);
-  assert.match(state.log.at(-1).text, /Doesn't reach: CNS/);
+  assert.match(logText(state.log.at(-1)), /Doesn't reach: CNS/);
 
   const uti = game("ecoli", { vignetteIndex: 1 });
   const blood = uti.sites.blood;
@@ -108,7 +109,7 @@ test("non-C. difficile antibiotics feed C. difficile", () => {
   state.hand = [];
   const before = state.sites.gi;
   endTurn(state);
-  assert.ok(state.log.some((entry) => /disrupts the normal gut flora/.test(entry.text)));
+  assert.ok(state.log.some((entry) => /disrupts the normal gut flora/.test(logText(entry))));
   assert.ok(state.sites.gi > before);
   assert.match(explainDrug(pathogenById.cdiff, drugById.vancomycin), /orally/);
 });
@@ -152,7 +153,7 @@ test("a telegraphed spread fizzles if the source is knocked down", () => {
   state.hand = [];
   endTurn(state);
   assert.equal(state.sites.blood, 0);
-  assert.ok(state.log.some((entry) => /contained/.test(entry.text)));
+  assert.ok(state.log.some((entry) => /contained/.test(logText(entry))));
 });
 
 test("labs reveal traits; culture takes time and gates biochemistry", () => {

@@ -21,6 +21,7 @@ Then open http://127.0.0.1:8417. Any static file server works too (`python -m ht
 - **21 drugs**, each with its real mechanism, spectrum, CNS penetration and site limits. Cefazolin won't reach the meninges, nitrofurantoin only works in the bladder, IV vancomycin does nothing for *C. difficile*, and broad antibiotics make *C. difficile* worse.
 - **Immune cards** that follow real immunology: neutrophils fail against viruses, capsules blunt phagocytes until complement or antibodies opsonize, NK and cytotoxic T cells handle intracellular microbes, and adaptive immunity only arrives after several days.
 - **Three difficulties.** Intern and Resident cross off the differential automatically. Attending makes you do it yourself.
+- **English and Mexican Spanish**, switchable at any time with the EN/ES toggle, even mid-case. It defaults to the browser's language. Translations live in `src/i18n/`, and a test fails if any game text is missing a translation.
 - **Case files**, a study reference that unlocks each organism once you've met it, plus the full formulary and immune card reference.
 
 Progress and an in-progress case are saved in the browser's local storage.

@@ -30,6 +30,7 @@ import {
   stopDrug,
   toggleStrike,
 } from "../engine/game.js";
+import { L, LANGUAGES, detectLang, getLang, logText, setLang, t } from "../i18n/index.js";
 
 const SAVE_KEY = "outbreak.save.v1";
 const PROGRESS_KEY = "outbreak.progress.v1";
@@ -60,9 +61,10 @@ const storage = {
 };
 
 const progress = Object.assign(
-  { difficulty: "resident", hints: true, seenHowTo: false, cases: 0, wins: 0, organisms: {} },
+  { difficulty: "resident", hints: true, seenHowTo: false, cases: 0, wins: 0, organisms: {}, lang: detectLang() },
   storage.get(PROGRESS_KEY, {}),
 );
+setLang(progress.lang);
 
 const ui = {
   screen: "menu",
@@ -86,8 +88,6 @@ const root = document.getElementById("app");
 const esc = (value) =>
   String(value ?? "").replace(/[&<>"']/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]);
 
-const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
-
 function saveProgress() {
   storage.set(PROGRESS_KEY, progress);
 }
@@ -101,6 +101,13 @@ function loadSavedGame() {
   const saved = storage.get(SAVE_KEY, null);
   if (saved && saved.version === 1 && pathogenById[saved.pathogenId] && saved.status === "playing") return saved;
   return null;
+}
+
+// Text shown for a resulted lab. Susceptibility is rebuilt from its drug lists so it
+// follows the active language; everything else is a canonical trait string.
+function labResultText(entry) {
+  if (entry.susceptible) return t("lab.susc", { s: entry.susceptible, r: entry.resistant });
+  return L(entry.result);
 }
 
 // Run an engine action, then work out what changed so the board can animate it.
@@ -186,6 +193,8 @@ function startNewCase(pathogenId) {
 
 function render() {
   const scroll = [...root.querySelectorAll("[data-scroll]")].map((el) => [el.dataset.scroll, el.scrollTop]);
+  document.documentElement.lang = LANGUAGES[getLang()].html;
+  document.title = t("page.title");
   let html = "";
   if (ui.screen === "menu") html = renderMenu();
   else if (ui.screen === "codex") html = renderCodex();
@@ -206,6 +215,16 @@ function logo(size = "") {
   return `<div class="logo ${size}"><svg viewBox="0 0 64 64" aria-hidden="true"><g stroke="currentColor" stroke-width="4" stroke-linecap="round"><line x1="32" y1="4" x2="32" y2="14"/><line x1="32" y1="50" x2="32" y2="60"/><line x1="4" y1="32" x2="14" y2="32"/><line x1="50" y1="32" x2="60" y2="32"/><line x1="12" y1="12" x2="19" y2="19"/><line x1="45" y1="45" x2="52" y2="52"/><line x1="52" y1="12" x2="45" y2="19"/><line x1="19" y1="45" x2="12" y2="52"/></g><circle cx="32" cy="32" r="16" fill="none" stroke="currentColor" stroke-width="4"/><circle cx="27" cy="29" r="3" class="dot"/><circle cx="37" cy="36" r="4" class="dot"/></svg><span>OUTBREAK</span></div>`;
 }
 
+function langToggle() {
+  const current = getLang();
+  return `<div class="lang-toggle" role="group" aria-label="${esc(t("lang.label"))}">${Object.entries(LANGUAGES)
+    .map(
+      ([id, l]) =>
+        `<button class="${id === current ? "active" : ""}" data-action="lang" data-id="${id}" aria-pressed="${id === current}" title="${esc(l.name)}" lang="${l.html}">${l.label}</button>`,
+    )
+    .join("")}</div>`;
+}
+
 function renderMenu() {
   const saved = loadSavedGame();
   const solved = PATHOGENS.filter((p) => progress.organisms[p.id]?.won).length;
@@ -213,27 +232,28 @@ function renderMenu() {
     .map(
       ([id, d]) => `
       <button class="difficulty ${progress.difficulty === id ? "active" : ""}" data-action="difficulty" data-id="${id}" aria-pressed="${progress.difficulty === id}">
-        <strong>${d.name}</strong><span>${esc(d.blurb)}</span>
+        <strong>${esc(L(d.name))}</strong><span>${esc(L(d.blurb))}</span>
       </button>`,
     )
     .join("");
   return `
   <main class="menu">
+    <div class="menu-lang">${langToggle()}</div>
     <section class="hero">
       ${logo("big")}
-      <p class="tagline">A microbiology card game. A patient arrives with a mystery infection. Work it up, name the bug, pick the right drug, and keep them alive.</p>
+      <p class="tagline">${esc(t("menu.tagline"))}</p>
       <div class="menu-actions">
-        ${saved ? `<button class="btn primary" data-action="continue">Continue case: day ${saved.day}</button>` : ""}
-        <button class="btn ${saved ? "" : "primary"}" data-action="new-case">${saved ? "New case" : "Start a case"}</button>
-        <button class="btn" data-action="codex">Case files <span class="pill">${solved}/${PATHOGENS.length}</span></button>
-        <button class="btn ghost" data-action="howto">How to play</button>
+        ${saved ? `<button class="btn primary" data-action="continue">${esc(t("menu.continue", { day: saved.day }))}</button>` : ""}
+        <button class="btn ${saved ? "" : "primary"}" data-action="new-case">${esc(t(saved ? "menu.newCase" : "menu.start"))}</button>
+        <button class="btn" data-action="codex">${esc(t("menu.codex"))} <span class="pill">${solved}/${PATHOGENS.length}</span></button>
+        <button class="btn ghost" data-action="howto">${esc(t("menu.howto"))}</button>
       </div>
-      <h2 class="section-title">Difficulty</h2>
+      <h2 class="section-title">${esc(t("menu.difficulty"))}</h2>
       <div class="difficulties">${difficulties}</div>
-      <label class="toggle"><input type="checkbox" data-action="hints" ${progress.hints ? "checked" : ""}/> Show hints during cases</label>
-      ${progress.cases ? `<p class="record">${plural(progress.cases, "case")} played · ${progress.wins} patients saved</p>` : ""}
+      <label class="toggle"><input type="checkbox" data-action="hints" ${progress.hints ? "checked" : ""}/> ${esc(t("menu.hints"))}</label>
+      ${progress.cases ? `<p class="record">${esc(t("menu.record", { cases: progress.cases, wins: progress.wins }))}</p>` : ""}
     </section>
-    <footer class="credits">For learning only. Not medical advice. Real-world treatment depends on local resistance patterns and guidelines.</footer>
+    <footer class="credits">${esc(t("menu.credits"))}</footer>
   </main>`;
 }
 
@@ -247,29 +267,30 @@ function renderGame() {
   const hpClass = hpPct > 60 ? "good" : hpPct > 30 ? "warn" : "bad";
   const adaptiveIn = settings.adaptiveDay - game.day;
   const adaptive = game.adaptiveOnline
-    ? `<span class="adaptive on" title="B and T cells clear ${getPathogen(game).adaptiveClear ?? 2} from every site each morning">Adaptive immunity online</span>`
-    : `<span class="adaptive" title="Clonal expansion of B and T cells takes days">Adaptive immunity in ${plural(adaptiveIn, "day")}</span>`;
+    ? `<span class="adaptive on" title="${esc(t("adaptive.onTitle", { n: getPathogen(game).adaptiveClear ?? 2 }))}">${esc(t("adaptive.on"))}</span>`
+    : `<span class="adaptive" title="${esc(t("adaptive.inTitle"))}">${esc(t("adaptive.in", { n: adaptiveIn }))}</span>`;
   const selected = ui.selected ? game.hand.find((card) => card.uid === ui.selected) : null;
 
   return `
   <div class="game tab-${ui.mobileTab}">
     <header class="topbar">
-      <button class="icon-btn" data-action="menu" aria-label="Back to menu">←</button>
+      <button class="icon-btn" data-action="menu" aria-label="${esc(t("game.back"))}">←</button>
       ${logo()}
-      <div class="day">Day <strong>${game.day}</strong><span class="diff">${settings.name}</span></div>
-      <div class="hp ${hpClass}" title="Patient health">
-        <span class="hp-label">Patient</span>
+      <div class="day">${esc(t("game.day"))} <strong>${game.day}</strong><span class="diff">${esc(L(settings.name))}</span></div>
+      <div class="hp ${hpClass}" title="${esc(t("game.health"))}">
+        <span class="hp-label">${esc(t("game.patient"))}</span>
         <div class="hp-bar"><div style="width:${hpPct}%"></div></div>
         <span class="hp-num">${game.hp}/${game.maxHp}</span>
         ${ui.hpDelta ? `<span class="float ${ui.hpDelta > 0 ? "up" : "down"}">${ui.hpDelta > 0 ? "+" : ""}${ui.hpDelta}</span>` : ""}
       </div>
       ${adaptive}
-      <button class="icon-btn" data-action="howto" aria-label="How to play">?</button>
+      ${langToggle()}
+      <button class="icon-btn" data-action="howto" aria-label="${esc(t("menu.howto"))}">?</button>
     </header>
 
-    <nav class="mobile-tabs" aria-label="Panels">
-      ${[["body", "Patient"], ["chart", "Chart"], ["orders", "Orders"], ["log", "Log"]]
-        .map(([id, label]) => `<button class="${ui.mobileTab === id ? "active" : ""}" data-action="mobile-tab" data-id="${id}">${label}</button>`)
+    <nav class="mobile-tabs" aria-label="${esc(t("game.panels"))}">
+      ${["body", "chart", "orders", "log"]
+        .map((id) => `<button class="${ui.mobileTab === id ? "active" : ""}" data-action="mobile-tab" data-id="${id}">${esc(t(`tab.${id}`))}</button>`)
         .join("")}
     </nav>
 
@@ -286,14 +307,14 @@ function renderGame() {
     </main>
 
     <footer class="hand-bar">
-      <div class="energy" title="Energy: spent on cards, tests and drugs. Refills each day.">
+      <div class="energy" title="${esc(t("game.energyTitle"))}">
         ${Array.from({ length: RULES.energy }, (_, i) => `<span class="pip ${i < game.energy ? "full" : ""}"></span>`).join("")}
         <span class="energy-num">${game.energy}</span>
       </div>
-      <div class="hand">${game.hand.map(renderHandCard).join("") || '<p class="muted">No cards in hand.</p>'}</div>
+      <div class="hand">${game.hand.map(renderHandCard).join("") || `<p class="muted">${esc(t("game.noCards"))}</p>`}</div>
       <div class="end-wrap">
-        <button class="btn primary end-turn" data-action="end-turn">End day</button>
-        <span class="deck-count" title="Draw pile / discard pile">🂠 ${game.draw.length} · ♻ ${game.discard.length}</span>
+        <button class="btn primary end-turn" data-action="end-turn">${esc(t("game.endDay"))}</button>
+        <span class="deck-count" title="${esc(t("game.deckTitle"))}">🂠 ${game.draw.length} · ♻ ${game.discard.length}</span>
       </div>
     </footer>
   </div>`;
@@ -306,25 +327,25 @@ function renderChart() {
   const results = Object.entries(game.labs)
     .map(([id, entry]) => {
       const lab = labById[id];
-      if (!entry.ready) return `<li class="pending"><span>${esc(lab.name)}</span><em>pending, back day ${entry.readyDay}</em></li>`;
-      return `<li><span>${esc(lab.name)}</span><strong>${esc(entry.result)}</strong></li>`;
+      if (!entry.ready) return `<li class="pending"><span>${esc(L(lab.name))}</span><em>${esc(t("lab.pending", { day: entry.readyDay }))}</em></li>`;
+      return `<li><span>${esc(L(lab.name))}</span><strong>${esc(labResultText(entry))}</strong></li>`;
     })
     .join("");
   return `
     <section class="panel">
-      <h2>Presentation</h2>
-      <p class="vignette">${esc(vignette.text)}</p>
+      <h2>${esc(t("chart.presentation"))}</h2>
+      <p class="vignette">${esc(L(vignette.text))}</p>
     </section>
     <section class="panel">
-      <h2>Results</h2>
-      ${results ? `<ul class="results">${results}</ul>` : '<p class="muted">No tests yet. Order them from the Lab.</p>'}
+      <h2>${esc(t("chart.results"))}</h2>
+      ${results ? `<ul class="results">${results}</ul>` : `<p class="muted">${esc(t("chart.noTests"))}</p>`}
     </section>
     <section class="panel">
       <div class="panel-head">
-        <h2>Differential</h2>
-        ${confirmed ? "" : `<button class="btn small primary" data-action="open-diagnose">Diagnose</button>`}
+        <h2>${esc(t("chart.differential"))}</h2>
+        ${confirmed ? "" : `<button class="btn small primary" data-action="open-diagnose">${esc(t("chart.diagnose"))}</button>`}
       </div>
-      ${confirmed ? `<p class="confirmed">✔ ${esc(confirmed.name)}</p>` : ""}
+      ${confirmed ? `<p class="confirmed">✔ ${esc(L(confirmed.name))}</p>` : ""}
       ${renderDifferential()}
     </section>`;
 }
@@ -339,27 +360,28 @@ function renderDifferential() {
   const rows = Object.entries(groups)
     .map(
       ([group, items]) => `
-      <li class="ddx-group">${esc(group)}</li>
+      <li class="ddx-group">${esc(L(group))}</li>
       ${items
         .map(({ pathogen, eliminated, reasons }) => {
           const struck = game.strikes.includes(pathogen.id);
           const out = (auto && eliminated) || struck;
-          const why = auto && eliminated ? reasons[0] : struck ? "struck by you" : "";
+          const why = auto && eliminated ? reasons[0] : struck ? t("ddx.struck") : "";
           const isDx = game.diagnosis.confirmed === pathogen.id;
-          return `<li><button class="ddx ${out ? "out" : ""} ${isDx ? "dx" : ""}" data-action="strike" data-id="${pathogen.id}" title="${out ? "Ruled out" : "Click to strike out"}">
-            <span class="name">${esc(pathogen.short)}</span>${why ? `<span class="why">${esc(why)}</span>` : ""}
+          return `<li><button class="ddx ${out ? "out" : ""} ${isDx ? "dx" : ""}" data-action="strike" data-id="${pathogen.id}" title="${esc(t(out ? "ddx.ruledOut" : "ddx.strike"))}">
+            <span class="name">${esc(L(pathogen.short))}</span>${why ? `<span class="why">${esc(why)}</span>` : ""}
           </button></li>`;
         })
         .join("")}`,
     )
     .join("");
-  return `<p class="muted small">${remaining} of ${PATHOGENS.length} still possible${auto ? "" : " · strike them out yourself"}</p><ul class="ddx-list">${rows}</ul>`;
+  const count = t("ddx.remaining", { n: remaining, total: PATHOGENS.length });
+  return `<p class="muted small">${esc(count)}${auto ? "" : ` · ${esc(t("ddx.manual"))}`}</p><ul class="ddx-list">${rows}</ul>`;
 }
 
 function renderIntent() {
   const game = ui.game;
   const report = ui.report?.length
-    ? `<div class="report"><h3>Overnight &amp; this morning</h3><ul>${ui.report.map((e) => `<li class="${e.kind}">${esc(e.text)}</li>`).join("")}</ul></div>`
+    ? `<div class="report"><h3>${esc(t("report.title"))}</h3><ul>${ui.report.map((e) => `<li class="${e.kind}">${esc(logText(e))}</li>`).join("")}</ul></div>`
     : "";
   const intent = describeIntent(game);
   if (!intent) return report;
@@ -370,7 +392,7 @@ function renderIntent() {
     <div class="intent intent-${game.intent.type}">
       <span class="intent-icon" aria-hidden="true">${intent.icon}</span>
       <div><strong>${esc(intent.title)}</strong><p>${esc(intent.text)}</p></div>
-      <div class="expected" title="Damage at current loads plus any toxin, before overnight growth">≈${expected}<small>damage tonight</small></div>
+      <div class="expected" title="${esc(t("intent.expectedTitle"))}">≈${expected}<small>${esc(t("intent.expected"))}</small></div>
     </div>`;
 }
 
@@ -383,17 +405,17 @@ function renderHint() {
   const selected = ui.selected && game.hand.find((c) => c.uid === ui.selected);
   let hint = "";
   if (selected) {
-    hint = CARDS[selected.id].target === "site" ? "Now choose a body site for the card." : "Tap the card again to play it.";
+    hint = t(CARDS[selected.id].target === "site" ? "hint.site" : "hint.tapAgain");
   } else if (failing) {
-    hint = `${drugById[failing].name} isn't working. Stop it to free the slot.`;
+    hint = t("hint.failing", { drug: drugById[failing].name });
   } else if (game.day === 1 && Object.keys(game.labs).length === 0) {
-    hint = "Start the workup: order a Gram stain in the Lab. Every result narrows the differential.";
+    hint = t("hint.start");
   } else if (game.drugs.length === 0 && game.day >= 1 && Object.keys(game.labs).length > 0) {
-    hint = "Start empiric therapy in the Pharmacy, aimed at your top suspects. You can switch later.";
+    hint = t("hint.empiric");
   } else if (auto && left.length === 1 && !game.diagnosis.confirmed) {
-    hint = `Only ${left[0].pathogen.short} fits. Make the diagnosis: your drugs work better once you name it.`;
+    hint = t("hint.onlyOne", { name: left[0].pathogen.short });
   } else if (game.intent?.type === "spread") {
-    hint = `Knock ${siteById[game.intent.source].name} below ${RULES.spreadThreshold} to stop the spread.`;
+    hint = t("hint.spread", { site: siteById[game.intent.source].name, n: RULES.spreadThreshold });
   }
   return hint ? `<p class="hint">💡 ${esc(hint)}</p>` : "";
 }
@@ -410,45 +432,51 @@ function renderSite(site) {
   const intent = game.intent;
   const spreadTag =
     intent?.type === "spread" && intent.source === site.id
-      ? `<span class="tag threat">spreading → ${esc(siteById[intent.target].name)}</span>`
+      ? `<span class="tag threat">${esc(t("site.spreading", { site: siteById[intent.target].name }))}</span>`
       : intent?.type === "spread" && intent.target === site.id
-        ? '<span class="tag threat">about to be seeded</span>'
+        ? `<span class="tag threat">${esc(t("site.seeded"))}</span>`
         : "";
   const dmg = siteDamage(game, site.id);
+  const meta = load ? t("site.dmg", { n: dmg }) : t(game.everInfected.includes(site.id) ? "site.cleared" : "site.clear");
   return `
     <button class="site ${severity} ${targetable ? "targetable" : ""} ${delta ? (delta < 0 ? "hit" : "grow") : ""}"
       data-action="site" data-id="${site.id}" ${selected && CARDS[selected.id].target === "site" && !targetable ? "disabled" : ""}
-      aria-label="${esc(site.name)}: load ${load}">
+      aria-label="${esc(t("site.aria", { site: site.name, n: load }))}">
       <span class="site-icon" aria-hidden="true">${site.icon}</span>
-      <span class="site-name">${esc(site.name)}</span>
+      <span class="site-name">${esc(L(site.name))}</span>
       <span class="site-load">${load}</span>
       <span class="load-bar"><span style="width:${pct}%"></span></span>
-      <span class="site-meta">${load ? `≈${dmg} dmg/day` : game.everInfected.includes(site.id) ? "cleared" : "clear"}</span>
+      <span class="site-meta">${esc(meta)}</span>
       ${spreadTag}
       ${preview !== null ? `<span class="preview">−${preview}</span>` : ""}
       ${delta ? `<span class="float ${delta < 0 ? "down" : "up"}">${delta > 0 ? "+" : ""}${delta}</span>` : ""}
     </button>`;
 }
 
+function responseTag(obs, fallback = "") {
+  if (obs === "response") return `<span class="tag good">${esc(t("drug.responding"))}</span>`;
+  if (obs === "none") return `<span class="tag bad">${esc(t("drug.noResponse"))}</span>`;
+  return fallback;
+}
+
 function renderActiveDrugs() {
   const game = ui.game;
   const slots = Array.from({ length: RULES.drugSlots }, (_, i) => {
     const drugId = game.drugs[i];
-    if (!drugId) return `<div class="drug-slot empty">Empty drug slot<small>Pharmacy → start a drug</small></div>`;
+    if (!drugId) return `<div class="drug-slot empty">${esc(t("slot.empty"))}<small>${esc(t("slot.hint"))}</small></div>`;
     const drug = drugById[drugId];
-    const obs = game.drugObservations[drugId];
-    const status = obs === "response" ? '<span class="tag good">responding</span>' : obs === "none" ? '<span class="tag bad">no response</span>' : '<span class="tag">awaiting response</span>';
-    return `<div class="drug-slot"><span class="pill-icon" aria-hidden="true">💊</span><div><strong>${esc(drug.name)}</strong>${status}</div><button class="btn small ghost" data-action="stop-drug" data-id="${drugId}">Stop</button></div>`;
+    const status = responseTag(game.drugObservations[drugId], `<span class="tag">${esc(t("drug.awaiting"))}</span>`);
+    return `<div class="drug-slot"><span class="pill-icon" aria-hidden="true">💊</span><div><strong>${esc(L(drug.name))}</strong>${status}</div><button class="btn small ghost" data-action="stop-drug" data-id="${drugId}">${esc(t("drug.stop"))}</button></div>`;
   }).join("");
-  return `<div class="drug-slots" title="Each running drug doses every morning: −${drugPotency(game)} in every infected site it reaches, if the organism is susceptible">${slots}</div>`;
+  return `<div class="drug-slots" title="${esc(t("slot.title", { n: drugPotency(game) }))}">${slots}</div>`;
 }
 
 function renderLog() {
   const game = ui.game;
   const recent = game.log.slice(-40);
   const startIndex = game.log.length - recent.length;
-  return `<h2 class="log-title">Timeline</h2><ol class="log" data-scroll="log">${recent
-    .map((entry, i) => `<li class="${entry.kind} ${startIndex + i >= (ui.fresh ?? Infinity) ? "fresh" : ""}">${esc(entry.text)}</li>`)
+  return `<h2 class="log-title">${esc(t("log.title"))}</h2><ol class="log" data-scroll="log">${recent
+    .map((entry, i) => `<li class="${entry.kind} ${startIndex + i >= (ui.fresh ?? Infinity) ? "fresh" : ""}">${esc(logText(entry))}</li>`)
     .join("")}</ol>`;
 }
 
@@ -456,8 +484,8 @@ function renderOrders() {
   const tab = ui.ordersTab;
   return `
     <div class="tabs" role="tablist">
-      <button role="tab" aria-selected="${tab === "lab"}" class="${tab === "lab" ? "active" : ""}" data-action="orders-tab" data-id="lab">🔬 Lab</button>
-      <button role="tab" aria-selected="${tab === "pharmacy"}" class="${tab === "pharmacy" ? "active" : ""}" data-action="orders-tab" data-id="pharmacy">💊 Pharmacy</button>
+      <button role="tab" aria-selected="${tab === "lab"}" class="${tab === "lab" ? "active" : ""}" data-action="orders-tab" data-id="lab">🔬 ${esc(t("tab.lab"))}</button>
+      <button role="tab" aria-selected="${tab === "pharmacy"}" class="${tab === "pharmacy" ? "active" : ""}" data-action="orders-tab" data-id="pharmacy">💊 ${esc(t("tab.pharmacy"))}</button>
     </div>
     ${tab === "lab" ? renderLabs() : renderPharmacy()}`;
 }
@@ -467,11 +495,20 @@ function renderLabs() {
   return `<ul class="order-list">${LABS.map((lab) => {
     const status = labStatus(game, lab.id);
     const entry = game.labs[lab.id];
-    const state = entry && !entry.ready ? `pending, back day ${entry.readyDay}` : entry && status.ok ? "repeat" : entry ? "resulted" : status.ok ? "" : status.error;
+    const state =
+      entry && !entry.ready
+        ? t("lab.pending", { day: entry.readyDay })
+        : entry && status.ok
+          ? t("lab.repeat")
+          : entry
+            ? t("lab.resulted")
+            : status.ok
+              ? ""
+              : status.error;
     return `<li class="order ${entry?.ready && !status.ok ? "done" : ""}">
       <div class="order-main">
-        <strong>${esc(lab.name)}</strong>
-        <p>${esc(lab.blurb)}</p>
+        <strong>${esc(L(lab.name))}</strong>
+        <p>${esc(L(lab.blurb))}</p>
         ${state ? `<em>${esc(state)}</em>` : ""}
       </div>
       <button class="btn small" data-action="order-lab" data-id="${lab.id}" ${status.ok ? "" : "disabled"}>${lab.cost}⚡</button>
@@ -483,29 +520,30 @@ function renderPharmacy() {
   const game = ui.game;
   return DRUG_GROUPS.map(
     (group) => `
-    <h3 class="group-title">${esc(group)}</h3>
+    <h3 class="group-title">${esc(L(group))}</h3>
     <ul class="order-list">${DRUGS.filter((drug) => drug.group === group)
       .map((drug) => {
         const running = game.drugs.includes(drug.id);
         const status = drugStatus(game, drug.id);
-        const obs = game.drugObservations[drug.id];
         const badges = [
-          drug.cns ? '<span class="tag">CNS ✓</span>' : '<span class="tag dim">CNS ✗</span>',
-          drug.sites ? `<span class="tag dim">${esc(drug.sites.map((s) => siteById[s].name.split(" ")[0]).join("/"))} only</span>` : "",
-          drug.toxicity ? `<span class="tag bad">toxic −${drug.toxicity}/day</span>` : "",
-          obs === "none" ? '<span class="tag bad">no response</span>' : obs === "response" ? '<span class="tag good">responding</span>' : "",
+          `<span class="tag ${drug.cns ? "" : "dim"}">${esc(t("badge.cns"))} ${drug.cns ? "✓" : "✗"}</span>`,
+          drug.sites
+            ? `<span class="tag dim">${esc(t("badge.only", { sites: drug.sites.map((s) => L(siteById[s].short)).join("/") }))}</span>`
+            : "",
+          drug.toxicity ? `<span class="tag bad">${esc(t("badge.toxic", { n: drug.toxicity }))}</span>` : "",
+          responseTag(game.drugObservations[drug.id]),
         ].join("");
         const open = ui.expanded === drug.id;
         return `<li class="order drug ${running ? "running" : ""}">
           <div class="order-main">
-            <button class="link" data-action="expand" data-id="${drug.id}" aria-expanded="${open}">${esc(drug.name)}</button>
+            <button class="link" data-action="expand" data-id="${drug.id}" aria-expanded="${open}">${esc(L(drug.name))}</button>
             <div class="badges">${badges}</div>
-            ${open ? `<p>${esc(drug.mechanism)}</p><p class="muted">${esc(drug.note)}</p>` : ""}
+            ${open ? `<p>${esc(L(drug.mechanism))}</p><p class="muted">${esc(L(drug.note))}</p>` : ""}
           </div>
           ${
             running
-              ? `<button class="btn small ghost" data-action="stop-drug" data-id="${drug.id}">Stop</button>`
-              : `<button class="btn small" data-action="start-drug" data-id="${drug.id}" ${status.ok ? "" : "disabled"} title="${esc(status.ok ? "Start" : status.error)}">${drug.cost}⚡</button>`
+              ? `<button class="btn small ghost" data-action="stop-drug" data-id="${drug.id}">${esc(t("drug.stop"))}</button>`
+              : `<button class="btn small" data-action="start-drug" data-id="${drug.id}" ${status.ok ? "" : "disabled"} title="${esc(status.ok ? t("drug.start") : status.error)}">${drug.cost}⚡</button>`
           }
         </li>`;
       })
@@ -520,13 +558,13 @@ function renderHandCard(instance, index) {
   const selected = ui.selected === instance.uid;
   return `
     <button class="card type-${card.type} ${selected ? "selected" : ""} ${playable ? "" : "unaffordable"}"
-      data-action="card" data-uid="${instance.uid}" title="${esc(card.fact)}" aria-pressed="${selected}">
+      data-action="card" data-uid="${instance.uid}" title="${esc(L(card.fact))}" aria-pressed="${selected}">
       <span class="cost">${card.cost}</span>
       <span class="key" aria-hidden="true">${index + 1}</span>
-      <span class="card-type">${esc(card.type)}</span>
-      <strong class="card-name">${esc(card.name)}</strong>
-      <span class="card-text">${esc(card.text)}</span>
-      ${selected && card.target === "none" ? '<span class="card-cta">Tap again to play</span>' : ""}
+      <span class="card-type">${esc(t(`type.${card.type}`))}</span>
+      <strong class="card-name">${esc(L(card.name))}</strong>
+      <span class="card-text">${esc(L(card.text))}</span>
+      ${selected && card.target === "none" ? `<span class="card-cta">${esc(t("card.tapAgain"))}</span>` : ""}
     </button>`;
 }
 
@@ -540,37 +578,43 @@ function renderCodex() {
     body = `<div class="codex-grid">${PATHOGENS.map((p) => {
       const record = progress.organisms[p.id];
       if (!record) {
-        return `<div class="codex-tile locked"><span class="q">?</span><span>${esc(p.group)}</span><small>Meet it in a case to unlock</small></div>`;
+        return `<div class="codex-tile locked"><span class="q">?</span><span>${esc(L(p.group))}</span><small>${esc(t("codex.locked"))}</small></div>`;
       }
+      const status = record.won ? t("codex.best", { grade: record.bestGrade }) : t("codex.notCured");
       return `<button class="codex-tile" data-action="codex-entry" data-id="${p.id}">
-        <strong>${esc(p.short)}</strong><span>${esc(p.group)}</span>
-        <small>${record.won ? `Best grade ${record.bestGrade}` : "Not yet cured"} · ${plural(record.played, "case")}</small>
+        <strong>${esc(L(p.short))}</strong><span>${esc(L(p.group))}</span>
+        <small>${esc(status)} · ${esc(t("codex.cases", { n: record.played }))}</small>
       </button>`;
     }).join("")}</div>`;
   } else if (tab === "drugs") {
     body = DRUG_GROUPS.map(
-      (group) => `<h3 class="group-title">${esc(group)}</h3><div class="ref-grid">${DRUGS.filter((d) => d.group === group)
-        .map(
-          (d) => `<article class="ref"><h4>${esc(d.name)}</h4><p>${esc(d.mechanism)}</p><p class="muted">${esc(d.note)}</p>
-          <p class="small">Treats here: ${esc(PATHOGENS.filter((p) => isSusceptible(p, d)).map((p) => p.short).join(", ") || "none of the case organisms")}</p></article>`,
-        )
+      (group) => `<h3 class="group-title">${esc(L(group))}</h3><div class="ref-grid">${DRUGS.filter((d) => d.group === group)
+        .map((d) => {
+          const treats = PATHOGENS.filter((p) => isSusceptible(p, d)).map((p) => p.short);
+          return `<article class="ref"><h4>${esc(L(d.name))}</h4><p>${esc(L(d.mechanism))}</p><p class="muted">${esc(L(d.note))}</p>
+          <p class="small">${esc(treats.length ? t("codex.treats", { list: treats }) : t("codex.treatsNone"))}</p></article>`;
+        })
         .join("")}</div>`,
     ).join("");
   } else {
     body = `<div class="ref-grid">${Object.values(CARDS)
-      .map((c) => `<article class="ref type-${c.type}"><h4>${esc(c.name)} <span class="tag">${esc(c.type)}</span></h4><p>${esc(c.text)}</p><p class="muted">${esc(c.fact)}</p></article>`)
+      .map(
+        (c) =>
+          `<article class="ref type-${c.type}"><h4>${esc(L(c.name))} <span class="tag">${esc(t(`type.${c.type}`))}</span></h4><p>${esc(L(c.text))}</p><p class="muted">${esc(L(c.fact))}</p></article>`,
+      )
       .join("")}</div>`;
   }
   return `
   <main class="codex">
     <header class="topbar">
-      <button class="icon-btn" data-action="menu" aria-label="Back to menu">←</button>
+      <button class="icon-btn" data-action="menu" aria-label="${esc(t("game.back"))}">←</button>
       ${logo()}
-      <h1>Case files</h1>
+      <h1>${esc(t("menu.codex"))}</h1>
+      ${langToggle()}
     </header>
     <div class="tabs codex-tabs" role="tablist">
-      ${[["organisms", "Organisms"], ["drugs", "Formulary"], ["cards", "Immune cards"]]
-        .map(([id, label]) => `<button role="tab" aria-selected="${tab === id}" class="${tab === id ? "active" : ""}" data-action="codex-tab" data-id="${id}">${label}</button>`)
+      ${["organisms", "drugs", "cards"]
+        .map((id) => `<button role="tab" aria-selected="${tab === id}" class="${tab === id ? "active" : ""}" data-action="codex-tab" data-id="${id}">${esc(t(`codex.${id}`))}</button>`)
         .join("")}
     </div>
     <section class="codex-body">${body}</section>
@@ -578,30 +622,22 @@ function renderCodex() {
 }
 
 function renderPathogenCard(pathogen) {
-  const t = pathogen.traits;
-  const rows = [
-    ["Gram stain", t.gram],
-    ["Culture", t.culture],
-    ["Biochemistry", t.biochem],
-    ["Acid-fast", t.afb],
-    ["KOH / India ink", t.fungal],
-    ["PCR", t.pcr],
-    ["CSF", t.csf],
-  ].filter(([, value]) => value);
+  const traits = pathogen.traits;
+  const rows = ["gram", "culture", "biochem", "afb", "fungal", "pcr", "csf"].filter((trait) => traits[trait]);
   const drugs = DRUGS.filter((d) => isSusceptible(pathogen, d)).map((d) => d.name);
   return `
     <article class="pathogen-card">
-      <header><h3>${esc(pathogen.name)}</h3><span class="tag">${esc(pathogen.group)}</span></header>
-      <dl class="traits">${rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
-      <h4>Virulence factors</h4>
-      <div class="chips">${pathogen.virulenceFactors.map((v) => `<span class="chip">${esc(v)}</span>`).join("")}</div>
-      <h4>Treatment</h4>
-      <p>${esc(pathogen.treatment)}</p>
-      <p class="small muted">Works in this game: ${esc(drugs.join(", "))}</p>
-      <h4>High-yield pearls</h4>
-      <ul class="pearls">${pathogen.pearls.map((p) => `<li>${esc(p)}</li>`).join("")}</ul>
-      <h4>Presentations</h4>
-      <ul class="pearls">${pathogen.vignettes.map((v) => `<li>${esc(v.text)}</li>`).join("")}</ul>
+      <header><h3>${esc(L(pathogen.name))}</h3><span class="tag">${esc(L(pathogen.group))}</span></header>
+      <dl class="traits">${rows.map((trait) => `<dt>${esc(t(`trait.${trait}`))}</dt><dd>${esc(L(traits[trait]))}</dd>`).join("")}</dl>
+      <h4>${esc(t("pc.virulence"))}</h4>
+      <div class="chips">${pathogen.virulenceFactors.map((v) => `<span class="chip">${esc(L(v))}</span>`).join("")}</div>
+      <h4>${esc(t("pc.treatment"))}</h4>
+      <p>${esc(L(pathogen.treatment))}</p>
+      <p class="small muted">${esc(t("pc.works", { list: drugs }))}</p>
+      <h4>${esc(t("pc.pearls"))}</h4>
+      <ul class="pearls">${pathogen.pearls.map((p) => `<li>${esc(L(p))}</li>`).join("")}</ul>
+      <h4>${esc(t("pc.presentations"))}</h4>
+      <ul class="pearls">${pathogen.vignettes.map((v) => `<li>${esc(L(v.text))}</li>`).join("")}</ul>
     </article>`;
 }
 
@@ -616,36 +652,31 @@ function renderModal() {
   if (modal.type === "diagnose") content = renderDiagnose();
   if (modal.type === "end") content = renderEnd();
   if (modal.type === "codex-entry") {
-    content = `${renderPathogenCard(pathogenById[modal.id])}<div class="modal-actions"><button class="btn primary" data-action="close-modal">Close</button></div>`;
+    content = `${renderPathogenCard(pathogenById[modal.id])}<div class="modal-actions"><button class="btn primary" data-action="close-modal">${esc(t("modal.close"))}</button></div>`;
   }
   if (modal.type === "confirm-menu") {
-    content = `<h2>Leave the case?</h2><p>Your progress is saved. You can continue from the menu.</p>
-      <div class="modal-actions"><button class="btn ghost" data-action="close-modal">Stay</button><button class="btn primary" data-action="to-menu">Go to menu</button></div>`;
+    content = `<h2>${esc(t("leave.title"))}</h2><p>${esc(t("leave.text"))}</p>
+      <div class="modal-actions"><button class="btn ghost" data-action="close-modal">${esc(t("leave.stay"))}</button><button class="btn primary" data-action="to-menu">${esc(t("leave.go"))}</button></div>`;
   }
   const dismissable = modal.type !== "end";
   return `<div class="overlay" ${dismissable ? 'data-action="overlay"' : ""}><div class="modal modal-${modal.type}" role="dialog" aria-modal="true">${content}</div></div>`;
 }
 
+// The how-to steps are trusted HTML from the locale files.
 function renderHowTo() {
+  const params = {
+    energy: RULES.energy,
+    slots: RULES.drugSlots,
+    potency: RULES.drugPotency,
+    threshold: RULES.spreadThreshold,
+    bonus: RULES.diagnosisBonus,
+    wrong: RULES.wrongDiagnosisDamage,
+  };
   return `
-    <h2>How to play</h2>
-    <ol class="howto">
-      <li><strong>A patient arrives</strong> with an unknown organism. Read the presentation: it's your first clue. The body map shows the microbial load in each site and roughly how much damage it does per day.</li>
-      <li><strong>Each day you get ${RULES.energy} energy</strong> to spend on three things:
-        <ul>
-          <li><strong>Immune cards</strong> from your hand, played on a site. Match the cell to the microbe: neutrophils for extracellular bacteria and fungi, NK and T cells for viruses and intracellular bugs, complement for gram-negatives.</li>
-          <li><strong>Lab tests</strong> that reveal the organism's traits. The differential crosses off whatever no longer fits.</li>
-          <li><strong>Drugs</strong>, up to ${RULES.drugSlots} at a time. A drug the organism is susceptible to clears ${RULES.drugPotency} from every site it reaches, every day. Check CNS penetration!</li>
-        </ul>
-      </li>
-      <li><strong>Watch the organism's intent.</strong> It tells you what happens when you end the day: growth, spread to a new site, or a toxin. Bring the source site below ${RULES.spreadThreshold} to stop a spread.</li>
-      <li><strong>Overnight</strong> the organism replicates in proportion to its load, then the damage lands. Untreated infections snowball.</li>
-      <li><strong>Make the diagnosis</strong> when you're confident. Right: your drugs clear +${RULES.diagnosisBonus}. Wrong: you lose ${RULES.wrongDiagnosisDamage} health.</li>
-      <li><strong>Adaptive immunity</strong> arrives after a few days: it clears load every morning and adds antibodies and cytotoxic T cells to your deck.</li>
-      <li><strong>Clear every site to win.</strong> If health hits 0, the patient dies. Either way, the debrief explains the organism and every drug you chose.</li>
-    </ol>
-    <p class="muted small">Keys: 1-5 select a card, E ends the day, Esc cancels.</p>
-    <div class="modal-actions"><button class="btn primary" data-action="close-modal">Got it</button></div>`;
+    <h2>${esc(t("menu.howto"))}</h2>
+    <ol class="howto">${t("howto.steps", params)}</ol>
+    <p class="muted small">${esc(t("howto.keys"))}</p>
+    <div class="modal-actions"><button class="btn primary" data-action="close-modal">${esc(t("howto.ok"))}</button></div>`;
 }
 
 function renderDiagnose() {
@@ -653,17 +684,17 @@ function renderDiagnose() {
   const auto = settingsFor(game).autoDifferential;
   const entries = differential(game);
   return `
-    <h2>Make the diagnosis</h2>
-    <p class="muted">Right: drugs clear +${RULES.diagnosisBonus}. Wrong: −${RULES.wrongDiagnosisDamage} health.</p>
+    <h2>${esc(t("dx.title"))}</h2>
+    <p class="muted">${esc(t("dx.rules", { bonus: RULES.diagnosisBonus, wrong: RULES.wrongDiagnosisDamage }))}</p>
     <div class="dx-grid">${entries
       .map(({ pathogen, eliminated }) => {
         const out = (auto && eliminated) || game.strikes.includes(pathogen.id);
         const wrong = game.diagnosis.wrong.includes(pathogen.id);
         return `<button class="dx-option ${out ? "out" : ""}" data-action="diagnose" data-id="${pathogen.id}" ${wrong ? "disabled" : ""}>
-          <strong>${esc(pathogen.name)}</strong><span>${esc(pathogen.group)}</span></button>`;
+          <strong>${esc(L(pathogen.name))}</strong><span>${esc(L(pathogen.group))}</span></button>`;
       })
       .join("")}</div>
-    <div class="modal-actions"><button class="btn ghost" data-action="close-modal">Not yet</button></div>`;
+    <div class="modal-actions"><button class="btn ghost" data-action="close-modal">${esc(t("dx.notYet"))}</button></div>`;
 }
 
 function renderEnd() {
@@ -677,37 +708,38 @@ function renderEnd() {
         .map((id) => {
           const drug = drugById[id];
           const good = isSusceptible(pathogen, drug);
-          return `<li class="${good ? "good" : "bad"}"><strong>${good ? "✔" : "✘"} ${esc(drug.name)}</strong><span>${esc(explainDrug(pathogen, drug))}</span></li>`;
+          return `<li class="${good ? "good" : "bad"}"><strong>${good ? "✔" : "✘"} ${esc(L(drug.name))}</strong><span>${esc(explainDrug(pathogen, drug))}</span></li>`;
         })
         .join("")
-    : '<li class="bad"><strong>✘ No drugs given</strong><span>Antimicrobials were never started.</span></li>';
-  const missed =
-    !tried.some((id) => isSusceptible(pathogen, drugById[id]))
-      ? `<p class="small">Would have worked: ${esc(DRUGS.filter((d) => isSusceptible(pathogen, d)).map((d) => d.name).join(", "))}.</p>`
-      : "";
+    : `<li class="bad"><strong>✘ ${esc(t("end.noDrugs"))}</strong><span>${esc(t("end.noDrugsText"))}</span></li>`;
+  const missed = !tried.some((id) => isSusceptible(pathogen, drugById[id]))
+    ? `<p class="small">${esc(t("end.wouldWork", { list: DRUGS.filter((d) => isSusceptible(pathogen, d)).map((d) => d.name) }))}</p>`
+    : "";
+  const wrong = game.diagnosis.wrong.length;
   const dx = game.diagnosis.confirmed
-    ? `Diagnosed correctly${game.diagnosis.wrong.length ? ` after ${plural(game.diagnosis.wrong.length, "wrong guess")}` : ""}.`
-    : game.diagnosis.wrong.length
-      ? `Wrong guesses: ${game.diagnosis.wrong.map((id) => pathogenById[id].short).join(", ")}.`
-      : "No diagnosis was made.";
+    ? t("end.dxRight", { n: wrong })
+    : wrong
+      ? t("end.dxWrong", { list: game.diagnosis.wrong.map((id) => pathogenById[id].short) })
+      : t("end.noDx");
+  const scoreLine = lines.map((l) => `${l.label} ${l.value}`).join(" · ") || t("end.flawless");
   return `
     <div class="end-head ${won ? "won" : "lost"}">
       <div class="grade">${grade}</div>
       <div>
-        <h2>${won ? "Patient saved" : "Patient lost"}</h2>
-        <p>${won ? `Cured on day ${game.day} with ${game.hp}/${game.maxHp} health.` : `Died on day ${game.day}.`} ${esc(dx)}</p>
-        ${won ? `<p class="small muted">Score ${score} · ${lines.map((l) => `${esc(l.label)} ${l.value}`).join(" · ") || "flawless"}</p>` : ""}
+        <h2>${esc(t(won ? "end.saved" : "end.lost"))}</h2>
+        <p>${esc(won ? t("end.cured", { day: game.day, hp: game.hp, max: game.maxHp }) : t("end.died", { day: game.day }))} ${esc(dx)}</p>
+        ${won ? `<p class="small muted">${esc(t("end.score", { score }))} · ${esc(scoreLine)}</p>` : ""}
       </div>
     </div>
-    <p class="reveal">The organism was <strong>${esc(pathogen.name)}</strong>.</p>
-    <h3>Your drugs</h3>
+    <p class="reveal">${esc(t("end.reveal"))} <strong>${esc(L(pathogen.name))}</strong>.</p>
+    <h3>${esc(t("end.yourDrugs"))}</h3>
     <ul class="review">${drugReview}</ul>
     ${missed}
     ${renderPathogenCard(pathogen)}
     <div class="modal-actions">
-      <button class="btn ghost" data-action="to-menu">Menu</button>
-      <button class="btn" data-action="retry">Replay this organism</button>
-      <button class="btn primary" data-action="new-case">Next case</button>
+      <button class="btn ghost" data-action="to-menu">${esc(t("end.menu"))}</button>
+      <button class="btn" data-action="retry">${esc(t("end.retry"))}</button>
+      <button class="btn primary" data-action="new-case">${esc(t("end.next"))}</button>
     </div>`;
 }
 
@@ -740,6 +772,11 @@ const actions = {
   },
   howto: () => {
     ui.modal = { type: "howto" };
+    render();
+  },
+  lang: ({ id }) => {
+    progress.lang = setLang(id);
+    saveProgress();
     render();
   },
   difficulty: ({ id }) => {
