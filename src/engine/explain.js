@@ -1,31 +1,32 @@
 // Teaching text for the end-of-case debrief: why a drug did or didn't work.
 import { isFungus, isVirus } from "../data/pathogens.js";
+import { L, t } from "../i18n/index.js";
 
 export function isSusceptible(pathogen, drug) {
   return pathogen.susceptible.includes(drug.id);
 }
 
 export function explainDrug(pathogen, drug) {
-  if (isSusceptible(pathogen, drug)) return drug.note;
-  if (pathogen.notes[drug.id]) return pathogen.notes[drug.id];
+  if (isSusceptible(pathogen, drug)) return L(drug.note);
+  if (pathogen.notes[drug.id]) return L(pathogen.notes[drug.id]);
 
   const virus = isVirus(pathogen);
   const fungus = isFungus(pathogen);
   if (virus && drug.kind === "antibacterial") {
-    return "Antibiotics target bacterial structures: the cell wall, 70S ribosomes, DNA gyrase. Viruses have none of them.";
+    return t("explain.virusAntibacterial");
   }
   if (virus && drug.kind === "antifungal") {
-    return "Antifungals target ergosterol or the fungal cell wall. Viruses have neither.";
+    return t("explain.virusAntifungal");
   }
   if (fungus && drug.kind === "antibacterial") {
-    return "Fungi are eukaryotes with 80S ribosomes and ergosterol membranes. Antibacterials don't touch them.";
+    return t("explain.fungusAntibacterial");
   }
   if (!virus && drug.kind === "antiviral") {
-    return `${drug.name} blocks a viral enzyme, and only viruses have that target.`;
+    return t("explain.antiviral", { drug: drug.name });
   }
   if (!fungus && drug.kind === "antifungal") {
-    return `${drug.name} targets fungal ergosterol or cell-wall synthesis, which ${virus ? "viruses" : "bacteria"} don't have.`;
+    return t(virus ? "explain.antifungalVirus" : "explain.antifungalBacteria", { drug: drug.name });
   }
-  if (pathogen.notes.default) return pathogen.notes.default;
-  return `${drug.name} isn't an effective treatment for ${pathogen.short}. ${drug.note}`;
+  if (pathogen.notes.default) return L(pathogen.notes.default);
+  return t("explain.generic", { drug: drug.name, organism: pathogen.short, note: drug.note });
 }

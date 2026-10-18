@@ -5,6 +5,7 @@ import { DRUGS, drugById } from "../data/drugs.js";
 import { LABS, NORMAL_CSF, labById } from "../data/labs.js";
 import { PATHOGENS, grows, pathogenById } from "../data/pathogens.js";
 import { SITE_IDS, siteById } from "../data/sites.js";
+import { t } from "../i18n/index.js";
 import { isSusceptible } from "./explain.js";
 import { randomInt, shuffle, weightedPick } from "./rng.js";
 
@@ -49,7 +50,7 @@ export const RULES = {
 };
 
 const ok = { ok: true };
-const fail = (error) => ({ ok: false, error });
+const fail = (key, params) => ({ ok: false, error: t(key, params) });
 
 // ---------------------------------------------------------------------------
 // Setup
@@ -102,7 +103,7 @@ export function createGame({ seed = Date.now(), difficulty = "resident", pathoge
     state,
     STARTER_DECK.map((id) => makeCard(state, id)),
   );
-  log(state, "Day 1. The patient is admitted.", "system");
+  log(state, "log.admitted", {}, "system");
   chooseIntent(state);
   startHostTurn(state, { firstDay: true });
   return state;
@@ -130,8 +131,9 @@ export function settingsFor(state) {
   return DIFFICULTIES[state.difficulty];
 }
 
-function log(state, text, kind = "info") {
-  state.log.push({ day: state.day, text, kind });
+// Entries hold a message key and params, rendered with logText() in the active language.
+function log(state, key, params = {}, kind = "info") {
+  state.log.push({ day: state.day, key, params, kind });
 }
 
 function setLoad(state, site, load) {
@@ -160,10 +162,10 @@ function checkOutcome(state) {
   if (state.status !== "playing") return;
   if (totalLoad(state) === 0) {
     state.status = "won";
-    log(state, "The infection is cleared. The patient recovers.", "good");
+    log(state, "log.cleared", {}, "good");
   } else if (state.hp <= 0) {
     state.status = "lost";
-    log(state, "The patient has died.", "bad");
+    log(state, "log.died", {}, "bad");
   }
 }
 
@@ -197,11 +199,7 @@ function adaptiveResponse(state) {
     state.adaptiveOnline = true;
     const cards = ADAPTIVE_CARDS.map((id) => makeCard(state, id));
     state.draw = shuffle(state, [...state.draw, ...cards]);
-    log(
-      state,
-      "Adaptive immunity is online: clonal B and T cells have expanded. Antibodies and cytotoxic T cells join your deck.",
-      "adaptive",
-    );
+    log(state, "log.adaptiveOnline", {}, "adaptive");
   }
   if (!state.adaptiveOnline) return;
   const amount = getPathogen(state).adaptiveClear ?? 2;
@@ -210,10 +208,10 @@ function adaptiveResponse(state) {
     if (state.sites[site] > 0) {
       const removed = Math.min(amount, state.sites[site]);
       setLoad(state, site, state.sites[site] - removed);
-      cleared.push(`${siteById[site].name} −${removed}`);
+      cleared.push({ site: siteById[site].name, n: `−${removed}` });
     }
   }
-  if (cleared.length) log(state, `Adaptive response: ${cleared.join(", ")}.`, "adaptive");
+  if (cleared.length) log(state, "log.adaptive", { parts: cleared }, "adaptive");
 }
 
 function drugReaches(drug, site) {
@@ -240,25 +238,23 @@ function doseDrug(state, drugId) {
     if (drugReaches(drug, site)) reached.push(site);
     else blocked.push(site);
   }
-  const blockedText = blocked.length
-    ? ` Doesn't reach: ${blocked.map((site) => siteById[site].name).join(", ")}.`
-    : "";
+  const blockedNames = blocked.map((site) => siteById[site].name);
   if (reached.length === 0) {
-    log(state, `${drug.name}: no infected site within reach.${blockedText}`, "drug");
+    log(state, "log.drugNoSite", { drug: drug.name, blocked: blockedNames }, "drug");
     return;
   }
   state.drugObservations[drugId] = effective ? "response" : "none";
   if (!effective) {
-    log(state, `${drug.name}: no clinical response.${blockedText}`, "drug-bad");
+    log(state, "log.drugNone", { drug: drug.name, blocked: blockedNames }, "drug-bad");
     return;
   }
   const potency = drugPotency(state);
   const parts = reached.map((site) => {
     const removed = Math.min(potency, state.sites[site]);
     setLoad(state, site, state.sites[site] - removed);
-    return `${siteById[site].name} −${removed}`;
+    return { site: siteById[site].name, n: `−${removed}` };
   });
-  log(state, `${drug.name}: ${parts.join(", ")}.${blockedText}`, "drug-good");
+  log(state, "log.drugGood", { drug: drug.name, parts, blocked: blockedNames }, "drug-good");
 }
 
 function doseDrugs(state) {
@@ -268,7 +264,7 @@ function doseDrugs(state) {
     const drug = drugById[drugId];
     if (drug.toxicity) {
       damage(state, drug.toxicity);
-      log(state, `${drug.name} toxicity: −${drug.toxicity} health.`, "bad");
+      log(state, "log.toxicity", { drug: drug.name, n: drug.toxicity }, "bad");
     }
     if (
       pathogen.fedByAntibiotics &&
@@ -277,7 +273,7 @@ function doseDrugs(state) {
       state.sites.gi > 0
     ) {
       setLoad(state, "gi", state.sites.gi + 1);
-      log(state, `${drug.name} disrupts the normal gut flora: GI tract +1.`, "bad");
+      log(state, "log.flora", { drug: drug.name }, "bad");
     }
   }
 }
@@ -286,7 +282,9 @@ function resolveLabs(state) {
   for (const [labId, entry] of Object.entries(state.labs)) {
     if (!entry.ready && entry.readyDay <= state.day) {
       entry.ready = true;
-      log(state, `${labById[labId].name} result: ${entry.result}`, "lab");
+      const lab = labById[labId].name;
+      if (entry.susceptible) log(state, "log.suscResult", { lab, s: entry.susceptible, r: entry.resistant }, "lab");
+      else log(state, "log.labResult", { lab, result: entry.result }, "lab");
     }
   }
 }
@@ -295,18 +293,20 @@ function resolveLabs(state) {
 // Player actions. Each returns { ok } or { ok: false, error }.
 
 export function cardStatus(state, uid, site) {
-  if (state.status !== "playing") return fail("The case is over.");
+  if (state.status !== "playing") return fail("err.over");
   const instance = state.hand.find((card) => card.uid === uid);
-  if (!instance) return fail("That card isn't in your hand.");
+  if (!instance) return fail("err.noCard");
   const card = CARDS[instance.id];
-  if (state.energy < card.cost) return fail("Not enough energy.");
+  if (state.energy < card.cost) return fail("err.energy");
   if (card.target === "site") {
     if (site === undefined) return { ok: true, needsTarget: true };
-    if (!SITE_IDS.includes(site)) return fail("Choose a body site.");
-    if (card.onlySite && site !== card.onlySite) return fail(`${card.name} only works on ${siteById[card.onlySite].name}.`);
-    if (state.sites[site] === 0) return fail("Nothing to clear there.");
+    if (!SITE_IDS.includes(site)) return fail("err.chooseSite");
+    if (card.onlySite && site !== card.onlySite) {
+      return fail("err.onlySite", { card: card.name, site: siteById[card.onlySite].name });
+    }
+    if (state.sites[site] === 0) return fail("err.nothing");
   }
-  if (card.heal && state.hp >= state.maxHp) return fail("The patient is already at full health.");
+  if (card.heal && state.hp >= state.maxHp) return fail("err.fullHp");
   return ok;
 }
 
@@ -324,7 +324,7 @@ export function cardClearAmount(state, cardId, site) {
 export function playCard(state, uid, site) {
   const status = cardStatus(state, uid, site);
   if (!status.ok) return status;
-  if (status.needsTarget) return fail("Choose a body site for this card.");
+  if (status.needsTarget) return fail("err.needsTarget");
   const index = state.hand.findIndex((card) => card.uid === uid);
   const [instance] = state.hand.splice(index, 1);
   const card = CARDS[instance.id];
@@ -336,25 +336,21 @@ export function playCard(state, uid, site) {
     const amount = Math.min(cardClearAmount(state, instance.id, site), state.sites[site]);
     if (card.opsonizes && !state.turn.opsonized.includes(site)) state.turn.opsonized.push(site);
     setLoad(state, site, state.sites[site] - amount);
-    const where = siteById[site].name;
-    log(
-      state,
-      amount > 0 ? `${card.name} → ${where}: −${amount}.` : `${card.name} → ${where}: no effect.`,
-      amount > 0 ? "good" : "info",
-    );
+    const params = { card: card.name, site: siteById[site].name, n: amount };
+    log(state, amount > 0 ? "log.cardHit" : "log.cardNoEffect", params, amount > 0 ? "good" : "info");
   }
   if (instance.id === "interferon") {
     state.turn.interferon = true;
-    log(state, "Interferon: infected cells enter an antiviral state.", "good");
+    log(state, "log.interferon", {}, "good");
   }
   if (instance.id === "fever") {
     state.turn.fever = true;
     damage(state, card.selfDamage);
-    log(state, `Fever: replication slows. The patient takes ${card.selfDamage} damage.`, "info");
+    log(state, "log.fever", { n: card.selfDamage }, "info");
   }
   if (card.heal) {
     const healed = heal(state, card.heal);
-    log(state, `${card.name}: +${healed} health.`, "good");
+    log(state, "log.heal", { card: card.name, n: healed }, "good");
   }
   checkOutcome(state);
   return ok;
@@ -362,20 +358,20 @@ export function playCard(state, uid, site) {
 
 export function labStatus(state, labId) {
   const lab = labById[labId];
-  if (!lab) return fail("Unknown test.");
-  if (state.status !== "playing") return fail("The case is over.");
+  if (!lab) return fail("err.unknownTest");
+  if (state.status !== "playing") return fail("err.over");
   const existing = state.labs[labId];
   if (existing) {
     const repeatable = lab.repeatable && existing.ready && existing.result === NORMAL_CSF;
-    if (!repeatable) return fail(existing.ready ? "Already resulted." : "Pending.");
+    if (!repeatable) return fail(existing.ready ? "err.resulted" : "err.pending");
   }
   if (lab.needs) {
     const prerequisite = state.labs[lab.needs];
-    if (!prerequisite) return fail(`Needs a ${labById[lab.needs].name.toLowerCase()} first.`);
-    if (!prerequisite.ready) return fail(`Waiting for the ${labById[lab.needs].name.toLowerCase()}.`);
-    if (!grows(getPathogen(state))) return fail("No isolate to test.");
+    if (!prerequisite) return fail("err.needs", { lab: labById[lab.needs].name });
+    if (!prerequisite.ready) return fail("err.waiting", { lab: labById[lab.needs].name });
+    if (!grows(getPathogen(state))) return fail("err.noIsolate");
   }
-  if (state.energy < lab.cost) return fail("Not enough energy.");
+  if (state.energy < lab.cost) return fail("err.energy");
   return ok;
 }
 
@@ -396,6 +392,8 @@ function labResult(state, lab) {
     const resistant = tested.filter((drug) => !isSusceptible(pathogen, drug)).map((drug) => drug.name);
     return {
       result: `Susceptible: ${susceptible.join(", ")}. Resistant: ${resistant.join(", ")}.`,
+      susceptible,
+      resistant,
       clue: { trait: "susceptibility", value: susceptibilityKey(pathogen) },
     };
   }
@@ -411,23 +409,24 @@ export function orderLab(state, labId) {
   state.energy -= lab.cost;
   state.stats.testsOrdered += 1;
   const delay = labId === "culture" ? (pathogen.cultureDelay ?? lab.delay) : (lab.delay ?? 0);
-  const { result, clue } = labResult(state, lab);
+  const { result, clue, susceptible, resistant } = labResult(state, lab);
   state.labs[labId] = { orderedDay: state.day, readyDay: state.day + delay, ready: false, result, clue };
+  if (susceptible) Object.assign(state.labs[labId], { susceptible, resistant });
   if (delay === 0) {
     resolveLabs(state);
   } else {
-    log(state, `${lab.name} sent. Result expected on day ${state.day + delay}.`, "lab");
+    log(state, "log.labSent", { lab: lab.name, day: state.day + delay }, "lab");
   }
   return ok;
 }
 
 export function drugStatus(state, drugId) {
   const drug = drugById[drugId];
-  if (!drug) return fail("Unknown drug.");
-  if (state.status !== "playing") return fail("The case is over.");
-  if (state.drugs.includes(drugId)) return fail("Already running.");
-  if (state.drugs.length >= RULES.drugSlots) return fail(`Only ${RULES.drugSlots} drugs at once. Stop one first.`);
-  if (state.energy < drug.cost) return fail("Not enough energy.");
+  if (!drug) return fail("err.unknownDrug");
+  if (state.status !== "playing") return fail("err.over");
+  if (state.drugs.includes(drugId)) return fail("err.running");
+  if (state.drugs.length >= RULES.drugSlots) return fail("err.slots", { n: RULES.drugSlots });
+  if (state.energy < drug.cost) return fail("err.energy");
   return ok;
 }
 
@@ -440,41 +439,33 @@ export function startDrug(state, drugId) {
   const effective = isSusceptible(getPathogen(state), drug);
   if (!effective) state.stats.ineffectiveDrugs += 1;
   state.drugHistory.push({ drugId, day: state.day, effective });
-  log(state, `Started ${drug.name}.`, "drug");
+  log(state, "log.started", { drug: drug.name }, "drug");
   doseDrug(state, drugId);
   checkOutcome(state);
   return ok;
 }
 
 export function stopDrug(state, drugId) {
-  if (!state.drugs.includes(drugId)) return fail("That drug isn't running.");
+  if (!state.drugs.includes(drugId)) return fail("err.notRunning");
   state.drugs = state.drugs.filter((id) => id !== drugId);
-  log(state, `Stopped ${drugById[drugId].name}.`, "drug");
+  log(state, "log.stopped", { drug: drugById[drugId].name }, "drug");
   return ok;
 }
 
 export function makeDiagnosis(state, pathogenId) {
-  if (state.status !== "playing") return fail("The case is over.");
-  if (state.diagnosis.confirmed) return fail("Already diagnosed.");
+  if (state.status !== "playing") return fail("err.over");
+  if (state.diagnosis.confirmed) return fail("err.diagnosed");
   const guess = pathogenById[pathogenId];
-  if (!guess) return fail("Unknown organism.");
-  if (state.diagnosis.wrong.includes(pathogenId)) return fail("You already ruled that out.");
+  if (!guess) return fail("err.unknownOrganism");
+  if (state.diagnosis.wrong.includes(pathogenId)) return fail("err.ruledOut");
   if (pathogenId === state.pathogenId) {
     state.diagnosis.confirmed = pathogenId;
-    log(
-      state,
-      `Diagnosis confirmed: ${guess.name}. Targeted therapy: effective drugs clear +${RULES.diagnosisBonus}.`,
-      "good",
-    );
+    log(state, "log.dxRight", { name: guess.name, n: RULES.diagnosisBonus }, "good");
   } else {
     state.diagnosis.wrong.push(pathogenId);
     if (!state.strikes.includes(pathogenId)) state.strikes.push(pathogenId);
     damage(state, RULES.wrongDiagnosisDamage);
-    log(
-      state,
-      `Not ${guess.short}: the picture doesn't fit. The delay costs ${RULES.wrongDiagnosisDamage} health.`,
-      "bad",
-    );
+    log(state, "log.dxWrong", { name: guess.short, n: RULES.wrongDiagnosisDamage }, "bad");
     checkOutcome(state);
   }
   return ok;
@@ -482,7 +473,7 @@ export function makeDiagnosis(state, pathogenId) {
 
 export function toggleStrike(state, pathogenId) {
   if (state.strikes.includes(pathogenId)) {
-    if (state.diagnosis.wrong.includes(pathogenId)) return fail("Already ruled out by a wrong diagnosis.");
+    if (state.diagnosis.wrong.includes(pathogenId)) return fail("err.strikeLocked");
     state.strikes = state.strikes.filter((id) => id !== pathogenId);
   } else {
     state.strikes.push(pathogenId);
@@ -494,14 +485,14 @@ export function toggleStrike(state, pathogenId) {
 // Pathogen turn
 
 export function endTurn(state) {
-  if (state.status !== "playing") return fail("The case is over.");
+  if (state.status !== "playing") return fail("err.over");
   state.discard.push(...state.hand);
   state.hand = [];
   pathogenTurn(state);
   if (state.status !== "playing") return ok;
   state.day += 1;
   state.turn = freshTurnMods();
-  log(state, `Day ${state.day}.`, "system");
+  log(state, "log.day", { day: state.day }, "system");
   chooseIntent(state);
   startHostTurn(state);
   return ok;
@@ -520,11 +511,11 @@ function pathogenTurn(state) {
       if (load === 0) continue;
       const growth = Math.max(1, Math.round(load * rate));
       setLoad(state, site, load + growth);
-      parts.push(`${siteById[site].name} +${growth}`);
+      parts.push({ site: siteById[site].name, n: `+${growth}` });
     }
-    if (parts.length) log(state, `The organism replicates: ${parts.join(", ")}.`, "threat");
+    if (parts.length) log(state, "log.replicates", { parts }, "threat");
   } else {
-    log(state, "Replication is suppressed this turn.", "good");
+    log(state, "log.suppressed", {}, "good");
   }
 
   executeIntent(state);
@@ -534,7 +525,7 @@ function pathogenTurn(state) {
       const next = nextOnRoute(state, site);
       if (next) {
         setLoad(state, next, state.sites[next] + 1);
-        log(state, `Overwhelming burden in ${siteById[site].name} seeds ${siteById[next].name}.`, "threat");
+        log(state, "log.overflow", { from: siteById[site].name, to: siteById[next].name }, "threat");
       }
     }
   }
@@ -542,7 +533,7 @@ function pathogenTurn(state) {
   const harm = SITE_IDS.reduce((sum, site) => sum + siteDamage(state, site), 0);
   if (harm > 0) {
     damage(state, harm);
-    log(state, `Tissue damage: −${harm} health.`, "bad");
+    log(state, "log.tissue", { n: harm }, "bad");
   }
   checkOutcome(state);
 }
@@ -596,22 +587,19 @@ function executeIntent(state) {
     const site = heaviestSite(state);
     if (site) {
       setLoad(state, site, state.sites[site] + intent.amount);
-      log(state, `Rapid growth in ${siteById[site].name}: +${intent.amount}.`, "threat");
+      log(state, "log.rapid", { site: siteById[site].name, n: intent.amount }, "threat");
     }
   } else if (intent.type === "spread") {
     if (state.sites[intent.source] >= RULES.spreadThreshold) {
       setLoad(state, intent.target, state.sites[intent.target] + intent.amount);
-      log(
-        state,
-        `The organism spreads from ${siteById[intent.source].name} to ${siteById[intent.target].name}: +${intent.amount}.`,
-        "threat",
-      );
+      const params = { from: siteById[intent.source].name, to: siteById[intent.target].name, n: intent.amount };
+      log(state, "log.spread", params, "threat");
     } else {
-      log(state, `Spread to ${siteById[intent.target].name} was contained.`, "good");
+      log(state, "log.contained", { site: siteById[intent.target].name }, "good");
     }
   } else if (intent.type === "toxin") {
     damage(state, intent.amount);
-    log(state, `Toxin release: −${intent.amount} health.`, "bad");
+    log(state, "log.toxin", { n: intent.amount }, "bad");
   }
 }
 
@@ -619,25 +607,20 @@ function executeIntent(state) {
 export function describeIntent(state) {
   const intent = state.intent;
   if (!intent) return null;
-  const named = state.diagnosis.confirmed && intent.name ? `${intent.name}: ` : "";
-  switch (intent.type) {
-    case "multiply":
-      return { icon: "📈", title: "Rapid growth", text: `${named}+${intent.amount} in the most infected site at the end of your turn.` };
-    case "spread":
-      return {
-        icon: "➡️",
-        title: "Spreading",
-        text: `${named}will seed ${siteById[intent.target].name} from ${siteById[intent.source].name}. Bring ${siteById[intent.source].name} below ${RULES.spreadThreshold} to stop it.`,
-      };
-    case "toxin":
-      return { icon: "☠️", title: "Toxin", text: `${named}${intent.amount} damage at the end of your turn.` };
-    case "evade":
-      return { icon: "🛡️", title: "Immune evasion", text: `${named}immune cards clear ${RULES.evadePenalty} less this turn.` };
-    case "biofilm":
-      return { icon: "🧱", title: "Biofilm", text: `${named}drugs cleared 1 less today.` };
-    default:
-      return null;
-  }
+  const icons = { multiply: "📈", spread: "➡️", toxin: "☠️", evade: "🛡️", biofilm: "🧱" };
+  if (!icons[intent.type]) return null;
+  const params = {
+    n: intent.type === "evade" ? RULES.evadePenalty : (intent.amount ?? 1),
+    from: intent.source ? siteById[intent.source].name : "",
+    to: intent.target ? siteById[intent.target].name : "",
+    threshold: RULES.spreadThreshold,
+  };
+  const text = t(`intent.${intent.type}.text`, params);
+  return {
+    icon: icons[intent.type],
+    title: t(`intent.${intent.type}.title`),
+    text: state.diagnosis.confirmed && intent.name ? t("intent.named", { name: intent.name, text }) : text,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -646,7 +629,7 @@ export function describeIntent(state) {
 export function differential(state) {
   const clues = [];
   for (const [labId, entry] of Object.entries(state.labs)) {
-    if (entry.ready && entry.clue) clues.push({ ...entry.clue, label: labById[labId].name });
+    if (entry.ready && entry.clue) clues.push({ ...entry.clue, label: t("ddx.lab", { lab: labById[labId].name }) });
   }
   return PATHOGENS.map((pathogen) => {
     const reasons = [];
@@ -658,9 +641,9 @@ export function differential(state) {
     // not used: the case scripts cover a few presentations, not every site a microbe can reach.
     for (const [drugId, observation] of Object.entries(state.drugObservations)) {
       const susceptible = isSusceptible(pathogen, drugById[drugId]);
-      if ((observation === "response") !== susceptible) reasons.push(`Response to ${drugById[drugId].name}`);
+      if ((observation === "response") !== susceptible) reasons.push(t("ddx.response", { drug: drugById[drugId].name }));
     }
-    if (state.diagnosis.wrong.includes(pathogen.id)) reasons.push("Wrong diagnosis");
+    if (state.diagnosis.wrong.includes(pathogen.id)) reasons.push(t("ddx.wrong"));
     return { pathogen, eliminated: reasons.length > 0, reasons };
   });
 }
@@ -672,18 +655,18 @@ export function scoreGame(state) {
   const days = state.day;
   const lines = [];
   if (state.status !== "won") {
-    return { score: 0, grade: "F", lines: [{ label: "The patient died", value: 0 }] };
+    return { score: 0, grade: "F", lines: [{ label: t("score.died"), value: 0 }] };
   }
   let score = 100;
   const add = (label, value) => {
     if (value !== 0) lines.push({ label, value });
     score += value;
   };
-  add("Days beyond 4", -5 * Math.max(0, days - 4));
-  add("Health lost", -Math.round(30 * (1 - state.hp / state.maxHp)));
-  add("Wrong diagnoses", -10 * state.diagnosis.wrong.length);
-  add("Ineffective drugs started", -6 * state.stats.ineffectiveDrugs);
-  if (!state.diagnosis.confirmed) add("No confirmed diagnosis", -15);
+  add(t("score.days"), -5 * Math.max(0, days - 4));
+  add(t("score.health"), -Math.round(30 * (1 - state.hp / state.maxHp)));
+  add(t("score.wrong"), -10 * state.diagnosis.wrong.length);
+  add(t("score.ineffective"), -6 * state.stats.ineffectiveDrugs);
+  if (!state.diagnosis.confirmed) add(t("score.noDx"), -15);
   score = Math.max(0, Math.min(100, score));
   const grade = score >= 90 ? "S" : score >= 75 ? "A" : score >= 60 ? "B" : score >= 40 ? "C" : "D";
   return { score, grade, lines };

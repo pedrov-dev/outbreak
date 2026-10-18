@@ -202,6 +202,32 @@ h4 {
   justify-content: center;
   padding: 2rem 1rem;
 }
+.menu-lang {
+  align-self: flex-end;
+  margin-bottom: 0.5rem;
+}
+.lang-toggle {
+  display: inline-flex;
+  flex: none;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--panel);
+}
+.lang-toggle button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.45rem 0.6rem;
+  cursor: pointer;
+}
+.lang-toggle button.active {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
 .hero {
   max-width: 720px;
   width: 100%;
@@ -1418,7 +1444,7 @@ h4 {
     padding: 0;
     font-size: 0.72rem;
   }
-  .topbar .icon-btn[aria-label="How to play"] {
+  .topbar .lang-toggle {
     margin-left: auto;
   }
   .mobile-tabs {
