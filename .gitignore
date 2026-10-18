@@ -1,13 +1,15 @@
+node_modules/
+.DS_Store
+.idea/
+.vscode/
+.claude/
+
+# Leftovers from the Python prototype (see the python-prototype tag)
 __pycache__/
 *.py[cod]
-*$py.class
 .pytest_cache/
-.coverage
-htmlcov/
-.venv/
 venv/
+.venv/
 build/
 dist/
 *.egg-info/
-.idea/
-.vscode/
