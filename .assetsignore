@@ -1,0 +1,11 @@
+.claude
+.github
+.gitignore
+.assetsignore
+wrangler.jsonc
+CONTRIBUTING.md
+README.md
+docs
+package.json
+scripts
+tests
